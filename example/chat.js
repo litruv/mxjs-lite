@@ -316,7 +316,11 @@ export class ChatClient {
         if (event.content.msgtype === 'm.image' && event.content.url) {
             this.#renderImage(room, event.sender, event.content.url, event.content.body || 'Image', ts, eid);
         } else if (event.content.body) {
-            this.#renderMessage(room, event.sender, event.content.body, ts, eid);
+            let content = event.content.body;
+            if (event.content.format === 'org.matrix.custom.html' && event.content.formatted_body) {
+                try { content = this.#sanitizeHtml(event.content.formatted_body); } catch { /* plain fallback */ }
+            }
+            this.#renderMessage(room, event.sender, content, ts, eid);
         }
     }
 
@@ -324,10 +328,16 @@ export class ChatClient {
         const div = Object.assign(document.createElement('div'), { className: 'message' });
         div.dataset.eventId = eventId ?? '';
         div.dataset.sender  = sender;
+        const contentEl = Object.assign(document.createElement('span'), { className: 'message-content' });
+        if (content instanceof Node) {
+            contentEl.appendChild(content);
+        } else {
+            contentEl.textContent = content;
+        }
         div.append(
-            Object.assign(document.createElement('span'), { className: 'message-time',    textContent: this.#formatTime(ts) }),
+            Object.assign(document.createElement('span'), { className: 'message-time',   textContent: this.#formatTime(ts) }),
             Object.assign(document.createElement('span'), { className: `message-sender${sender === this.client?.userId ? ' self' : ''}`, textContent: this.getDisplayName(sender, room) }),
-            Object.assign(document.createElement('span'), { className: 'message-content', textContent: content }),
+            contentEl,
         );
         room.messagesEl.appendChild(div);
         room.messagesEl.scrollTop = room.messagesEl.scrollHeight;
@@ -521,6 +531,19 @@ export class ChatClient {
 
         try {
             this.client = new MxjsClient({ homeserver });
+
+            // Request notification permission once we have a client
+            if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
+                Notification.requestPermission();
+            }
+
+            // Mention handler — highlight message + browser notification
+            this.client.on('mention', ({ roomId, event, room }) => {
+                const msgEl = room.messagesEl?.querySelector(`[data-event-id="${event.event_id}"]`);
+                if (msgEl) msgEl.classList.add('mentioned');
+                const senderName = this.getDisplayName(event.sender, room);
+                this.#showMentionNotification(senderName, event.content.body || '', roomId);
+            });
             let authResult;
 
             if (this.authMode === 'guest') {
@@ -696,6 +719,15 @@ export class ChatClient {
                 } else {
                     lastEventId = event.event_id;
                     this.renderEvent(room, event);
+                    // Detect mention of the current user
+                    const myId = this.client?.userId;
+                    if (myId && event.sender !== myId) {
+                        const body    = event.content.body || '';
+                        const fmtBody = event.content.formatted_body || '';
+                        if (body.includes(myId) || fmtBody.includes(myId)) {
+                            this.client.emit('mention', { roomId: room.roomId, event, room });
+                        }
+                    }
                     if (!isActive) { room.unreadCount++; this.updateChannelList(); }
                 }
             }
@@ -767,7 +799,9 @@ export class ChatClient {
             } else if (message.startsWith('/')) {
                 await this.commands.handle(message);
             } else {
-                const result = await this.client.sendMessage(this.activeRoomId, message);
+                const room          = this.rooms.get(this.activeRoomId);
+                const formattedBody = this.#buildMentionBody(message, room);
+                const result = await this.client.sendMessage(this.activeRoomId, message, formattedBody);
                 if (!result?.eventId) throw new Error('Failed to send message');
             }
             this.elements.messageInput.value = '';
@@ -778,6 +812,101 @@ export class ChatClient {
             this.elements.messageInput.disabled = false;
             this.elements.messageInput.focus();
         }
+    }
+
+    /**
+     * Show a browser notification for a mention, if permission is granted.
+     * Does nothing when the page is currently focused.
+     * @param {string} sender
+     * @param {string} body
+     * @param {string} roomId
+     */
+    #showMentionNotification(sender, body, roomId) {
+        // Play sound
+        const audio = document.getElementById('mentionSound');
+        if (audio) {
+            audio.currentTime = 0;
+            audio.play().catch(() => {});
+        }
+        if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
+        if (document.hasFocus()) return;
+        const preview = body.length > 80 ? body.slice(0, 77) + '…' : body;
+        const n = new Notification(`${sender} mentioned you`, { body: preview, tag: roomId });
+        n.onclick = () => { window.focus(); this.setActiveRoom(roomId); n.close(); };
+    }
+
+    /**
+     * Given a plain-text message, replaces @userId:server patterns with Matrix mention
+     * HTML anchor tags using the member's display name. Returns null when there are no
+     * mentions so the plain send path is used.
+     * @param {string} text
+     * @param {import('./room-state.js').RoomState|undefined} room
+     * @returns {string|null}
+     */
+    #buildMentionBody(text, room) {
+        const mentionRe = /@(\S+:\S+)/g;
+        if (!mentionRe.test(text)) return null;
+
+        return text.replace(/@(\S+:\S+)/g, (match, id) => {
+            const userId      = `@${id}`;
+            const memberInfo  = room?.members?.get(userId);
+            const displayName = memberInfo?.displayName || userId.match(/^@([^:]+):/)?.[1] || userId;
+            const escaped     = displayName.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            return `<a href="https://matrix.to/#/${encodeURIComponent(userId)}">@${escaped}</a>`;
+        });
+    }
+
+    /**
+     * Parses an HTML string and returns a sanitized DocumentFragment.
+     * Only a safe whitelist of tags and attributes is preserved; everything
+     * else is stripped to its text content. `<a>` hrefs are restricted to
+     * https://matrix.to/ URLs to prevent open-redirect or javascript: attacks.
+     * @param {string} html
+     * @returns {DocumentFragment}
+     */
+    #sanitizeHtml(html) {
+        const ALLOWED = new Set(['a', 'b', 'strong', 'i', 'em', 'code', 'del', 's', 'strike', 'u', 'span', 'br']);
+        const doc  = new DOMParser().parseFromString(html, 'text/html');
+        const frag = document.createDocumentFragment();
+
+        /** @param {Node} src @param {Node} dest */
+        const walk = (src, dest) => {
+            for (const node of [...src.childNodes]) {
+                if (node.nodeType === Node.TEXT_NODE) {
+                    dest.appendChild(document.createTextNode(node.textContent));
+                } else if (node.nodeType === Node.ELEMENT_NODE) {
+                    const tag  = node.tagName.toLowerCase();
+                    const href = tag === 'a' ? (node.getAttribute('href') ?? '') : '';
+
+                    // Convert matrix.to mention anchors into styled display spans
+                    if (tag === 'a' && href.startsWith('https://matrix.to/#/@')) {
+                        const userId  = decodeURIComponent(href.slice('https://matrix.to/#/'.length));
+                        const el      = document.createElement('span');
+                        el.className  = 'mention';
+                        el.title      = userId;
+                        el.textContent = node.textContent || userId;
+                        dest.appendChild(el);
+                        continue;
+                    }
+
+                    if (ALLOWED.has(tag)) {
+                        const el = document.createElement(tag === 'strike' ? 's' : tag);
+                        if (tag === 'span' && node.getAttribute('class') === 'mention') {
+                            el.className = 'mention';
+                            const title = node.getAttribute('title');
+                            if (title) el.title = title;
+                        }
+                        walk(node, el);
+                        dest.appendChild(el);
+                    } else {
+                        walk(node, dest);
+                    }
+                }
+            }
+        };
+
+        walk(doc.body, frag);
+        return frag;
     }
 }
 

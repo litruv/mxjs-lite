@@ -238,6 +238,16 @@ body {
 
 .message:hover { background: #21222c; }
 
+.message.mentioned {
+    background: rgba(189, 147, 249, 0.07);
+    border-left: 2px solid #bd93f9;
+    padding-left: 4px;
+}
+
+.message.mentioned:hover {
+    background: rgba(189, 147, 249, 0.13);
+}
+
 .message-time {
     color: #6272a4;
     font-size: 11px;
@@ -263,6 +273,20 @@ body {
     flex: 1;
     overflow-wrap: break-word;
     line-height: 1.5;
+}
+
+.message-content a {
+    color: #8be9fd;
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.message-content a:hover { text-decoration: underline; }
+
+.mention {
+    color: #bd93f9;
+    font-weight: 600;
+    cursor: default;
 }
 
 .chat-image {

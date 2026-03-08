@@ -5,6 +5,9 @@
  */
 
 export class MxjsClient {
+    /** @type {Map<string, Set<Function>>} */
+    #handlers = new Map();
+
     /**
      * @param {Object} [config]
      * @param {string} [config.homeserver] - Matrix homeserver URL
@@ -345,11 +348,17 @@ export class MxjsClient {
      * Send a text message to a room.
      * @param {string} roomId
      * @param {string} message
+     * @param {string|null} [formattedBody] - Optional HTML body (org.matrix.custom.html)
      * @returns {Promise<{eventId: string} | null>}
      */
-    async sendMessage(roomId, message) {
+    async sendMessage(roomId, message, formattedBody = null) {
         try {
-            const result = await this.api(`/rooms/${roomId}/send/m.room.message/${Date.now()}`, 'PUT', { msgtype: 'm.text', body: message });
+            const content = { msgtype: 'm.text', body: message };
+            if (formattedBody) {
+                content.format         = 'org.matrix.custom.html';
+                content.formatted_body = formattedBody;
+            }
+            const result = await this.api(`/rooms/${roomId}/send/m.room.message/${Date.now()}`, 'PUT', content);
             return result.errcode ? null : { eventId: result.event_id };
         } catch (e) {
             console.error('send:', e);
@@ -640,6 +649,39 @@ export class MxjsClient {
             console.error('sync:', e);
             return null;
         }
+    }
+
+    /**
+     * Register an event listener.
+     * @param {string} event
+     * @param {Function} fn
+     * @returns {this}
+     */
+    on(event, fn) {
+        if (!this.#handlers.has(event)) this.#handlers.set(event, new Set());
+        this.#handlers.get(event).add(fn);
+        return this;
+    }
+
+    /**
+     * Remove an event listener. Omit fn to remove all listeners for the event.
+     * @param {string} event
+     * @param {Function} [fn]
+     * @returns {this}
+     */
+    off(event, fn) {
+        if (fn) this.#handlers.get(event)?.delete(fn);
+        else this.#handlers.delete(event);
+        return this;
+    }
+
+    /**
+     * Emit an event to all registered listeners.
+     * @param {string} event
+     * @param {...*} args
+     */
+    emit(event, ...args) {
+        this.#handlers.get(event)?.forEach(fn => { try { fn(...args); } catch (e) { console.error('emit', event, e); } });
     }
 
     /**
