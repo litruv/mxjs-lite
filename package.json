@@ -1,0 +1,25 @@
+{
+  "name": "mxjs-lite",
+  "version": "1.0.0",
+  "description": "Lightweight Matrix protocol client library with iframe bridge support for CSP-restricted environments",
+  "main": "mxjs-lite.js",
+  "type": "module",
+  "keywords": [
+    "matrix",
+    "protocol",
+    "client",
+    "chat",
+    "messaging",
+    "csp",
+    "bridge"
+  ],
+  "author": "litruv",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "http://synbox.ruv.wtf:8418/litruv/mxjs-lite.git"
+  },
+  "exports": {
+    ".": "./mxjs-lite.js"
+  }
+}
