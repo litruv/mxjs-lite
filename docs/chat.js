@@ -2,7 +2,7 @@
  * mxjs-lite IRC-style Chat Interface
  */
 
-import MxjsClient from './mxjs-lite.js';
+import MxjsClient from './mxjs-lite.min.js';
 import { RoomState } from './room-state.js';
 import { ContextMenu } from './context-menu.js';
 import { CommandHandler } from './chat-commands.js';
