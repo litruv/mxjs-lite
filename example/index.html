@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>mxjs-lite Chat</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <div class="title">mxjs-lite IRC-style Chat</div>
+            <div class="header-right">
+                <div class="status" id="status">
+                    <span class="status-indicator disconnected"></span>
+                    <span id="statusText">Disconnected</span>
+                </div>
+                <button id="disconnectBtn" style="display:none;">Disconnect</button>
+            </div>
+        </div>
+
+        <!-- Main content area -->
+        <div class="main">
+            <!-- User list sidebar -->
+            <div class="sidebar">
+                <div class="sidebar-header">Users</div>
+                <div class="user-list" id="userList">
+                    <div class="user-count">0 users</div>
+                </div>
+            </div>
+
+            <!-- Chat area -->
+            <div class="chat-container">
+                <!-- Topic bar -->
+                <div class="topic" id="topic">Not connected</div>
+                
+                <!-- Messages -->
+                <div class="messages" id="messages">
+                    <div class="system-message">*** Welcome to mxjs-lite chat</div>
+                    <div class="system-message">*** Configure server and room below to connect</div>
+                </div>
+
+                <!-- Input area -->
+                <div class="input-container">
+                    <div class="connection-form" id="connectionForm">
+                        <div class="auth-tabs">
+                            <button class="tab active" id="tabRegister" data-tab="register">Register</button>
+                            <button class="tab" id="tabLogin" data-tab="login">Login</button>
+                        </div>
+                        <div class="auth-fields">
+                            <input type="text"  id="homeserverInput" placeholder="Homeserver" value="https://chat.ruv.wtf">
+                            <input type="text"  id="usernameInput"   placeholder="Username">
+                            <input type="password" id="passwordInput" placeholder="Password">
+                            <input type="text"  id="roomInput"       placeholder="Room alias (e.g., #test:chat.ruv.wtf)" value="#test:chat.ruv.wtf">
+                            <button id="connectBtn">Register &amp; Connect</button>
+                        </div>
+                    </div>
+                    <div class="message-form" id="messageForm" style="display: none;">
+                        <input 
+                            type="text" 
+                            id="messageInput" 
+                            placeholder="Type a message or /help for commands..."
+                            autocomplete="off"
+                        >
+                        <button id="sendBtn">Send</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="chat.js"></script>
+</body>
+</html>
+
+
+        <!-- Main content area -->
+        <div class="main">
+            <!-- User list sidebar -->
+            <div class="sidebar">
+                <div class="sidebar-header">Users</div>
+                <div class="user-list" id="userList">
+                    <div class="user-count">0 users</div>
+                </div>
+            </div>
+
+            <!-- Chat area -->
+            <div class="chat-container">
+                <!-- Topic bar -->
+                <div class="topic" id="topic">Not connected</div>
+                
+                <!-- Messages -->
+                <div class="messages" id="messages">
+                    <div class="system-message">*** Welcome to mxjs-lite chat</div>
+                    <div class="system-message">*** Configure server and room below to connect</div>
+                </div>
+
+                <!-- Input area -->
+                <div class="input-container">
+                    <div class="connection-form" id="connectionForm">
+                        <input 
+                            type="text" 
+                            id="homeserverInput" 
+                            placeholder="Homeserver (e.g., https://chat.ruv.wtf)"
+                            value="https://chat.ruv.wtf"
+                        >
+                        <input 
+                            type="text" 
+                            id="roomInput" 
+                            placeholder="Room alias (e.g., #test:chat.ruv.wtf)"
+                            value="#test:chat.ruv.wtf"
+                        >
+                        <input 
+                            type="text" 
+                            id="nicknameInput" 
+                            placeholder="Nickname (optional)"
+                        >
+                        <button id="connectBtn">Connect</button>
+                    </div>
+                    <div class="message-form" id="messageForm" style="display: none;">
+                        <input 
+                            type="text" 
+                            id="messageInput" 
+                            placeholder="Type a message..."
+                            autocomplete="off"
+                        >
+                        <button id="sendBtn">Send</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="chat.js"></script>
+</body>
+</html>

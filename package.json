@@ -1,17 +1,19 @@
 {
   "name": "mxjs-lite",
   "version": "1.0.0",
-  "description": "Lightweight Matrix protocol client library with iframe bridge support for CSP-restricted environments",
+  "description": "Lightweight Matrix protocol client library",
   "main": "mxjs-lite.js",
   "type": "module",
+  "scripts": {
+    "build": "terser mxjs-lite.js -c -m --module -o build/mxjs-lite.min.js",
+    "test": "node test.js"
+  },
   "keywords": [
     "matrix",
     "protocol",
     "client",
     "chat",
-    "messaging",
-    "csp",
-    "bridge"
+    "messaging"
   ],
   "author": "litruv",
   "license": "MIT",
@@ -21,5 +23,8 @@
   },
   "exports": {
     ".": "./mxjs-lite.js"
+  },
+  "devDependencies": {
+    "terser": "^5.46.0"
   }
 }

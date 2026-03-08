@@ -1,11 +1,10 @@
 # mxjs-lite
 
-Lightweight Matrix protocol client library with iframe bridge support for CSP-restricted environments like Neocities.
+Lightweight Matrix protocol client library.
 
 ## Features
 
 - 🚀 Lightweight - No dependencies, pure JavaScript
-- 🔒 CSP-friendly - Optional iframe bridge for restricted environments
 - 📡 Core Matrix API - Register, join rooms, send/receive messages
 - 👥 User presence - Fetch user status and last active time
 - 📖 Public read - Fetch public room messages without authentication
@@ -53,24 +52,23 @@ await mxjs.sendMessage(roomId, 'Hello, world!', accessToken);
 const syncData = await mxjs.sync(accessToken);
 ```
 
-### With CSP Bridge (Neocities, etc.)
+## Live Example
 
-For environments with strict Content Security Policy:
+Check out the [example/](example/) folder for a fully functional IRC-style chat interface:
 
-```javascript
-import mxjs from 'mxjs-lite';
-
-// Initialize with bridge
-mxjs.init({
-    homeserver: 'https://matrix.org',
-    bridgeUrl: 'https://yourdomain.com/matrix-bridge.html',
-    useBridge: true
-});
-
-// All API calls now route through the iframe bridge
-const { accessToken, userId } = await mxjs.registerGuest();
-// ... rest of code works the same
+```bash
+cd example
+# Open index.html in your browser or use:
+python -m http.server 8000
 ```
+
+The example demonstrates:
+- Real-time message synchronization
+- User list management
+- IRC-style message formatting
+- Connection handling
+
+See [example/README.md](example/README.md) for details.
 
 ### Public API (Unauthenticated)
 
@@ -101,8 +99,6 @@ Initialize the library with configuration.
 
 **Parameters:**
 - `config.homeserver` (string) - Matrix homeserver URL
-- `config.bridgeUrl` (string, optional) - Bridge iframe URL for CSP hosts
-- `config.useBridge` (boolean, optional) - Use iframe bridge
 - `config.publicReadToken` (string, optional) - Public read token
 
 ### `api(endpoint, method, body, accessToken)`
