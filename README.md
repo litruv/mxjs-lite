@@ -107,6 +107,7 @@ new MxjsClient([options])
 |---|
 | [`.uploadMedia()`](#uploadmediadata-contenttype-filename) |
 | [`.sync()`](#syncsince-timeout) |
+| [`.processSyncData()`](#processsyncdatadata) |
 
 ### Event System
 
@@ -115,6 +116,18 @@ new MxjsClient([options])
 | [`.on()`](#onevent-fn) |
 | [`.off()`](#offevent-fn) |
 | [`.emit()`](#emitevent-args) |
+
+### Events
+
+[connect](#event-connect)  
+[disconnect](#event-disconnect)  
+[invite](#event-invite)  
+[memberUpdate](#event-memberupdate)  
+[mention](#event-mention)  
+[message](#event-message)  
+[roomJoin](#event-roomjoin)  
+[roomLeave](#event-roomleave)  
+[typing](#event-typing)
 
 ### Event Helpers
 
@@ -734,6 +747,28 @@ Performs a single `/sync` poll to retrieve new events.
 let since = null;
 while (true) {
     const data = await mx.sync(since, 30000);
+    mx.processSyncData(data);
+    since = data?.next_batch ?? since;
+}
+```
+
+---
+
+### .processSyncData(data)
+
+Processes a raw sync response and emits structured events for all new activity. Call this after each `.sync()` poll. Emits `roomJoin`, `roomLeave`, `invite`, `message`, `memberUpdate`, and `typing` — see [Event Details](#event-details) for payload shapes.
+
+| Parameter | Type | Description |
+|---|---|---|
+| `data` | `Object` | Sync response returned by `.sync()` |
+
+**Returns:** `void`
+
+```js
+let since = null;
+while (true) {
+    const data = await mx.sync(since, 30000);
+    mx.processSyncData(data);
     since = data?.next_batch ?? since;
 }
 ```
@@ -992,6 +1027,161 @@ Makes a raw request to the Matrix Client-Server API at `/_matrix/client/r0`.
 **Returns:** `Promise<Object>` — Parsed JSON response.
 
 Automatically retries once if the server returns `M_LIMIT_EXCEEDED`, waiting the requested `retry_after_ms`.
+
+---
+
+## Event Details
+
+### Event: connect
+
+Emitted after a successful `login`, `register`, or `registerGuest` call.
+
+| Property | Type | Description |
+|---|---|---|
+| `accessToken` | `string` | The session access token |
+| `userId` | `string` | The authenticated user's ID |
+
+```js
+mx.on('connect', ({ userId }) => {
+    console.log(`Signed in as ${userId}`);
+});
+```
+
+---
+
+### Event: disconnect
+
+Emitted after `logout` is called. No payload.
+
+```js
+mx.on('disconnect', () => {
+    console.log('Signed out');
+});
+```
+
+---
+
+### Event: invite
+
+Emitted by `processSyncData` when the client receives a room invitation.
+
+| Property | Type | Description |
+|---|---|---|
+| `roomId` | `string` | ID of the room the invite is for |
+
+```js
+mx.on('invite', ({ roomId }) => {
+    console.log(`Invited to ${roomId}`);
+});
+```
+
+---
+
+### Event: memberUpdate
+
+Emitted by `processSyncData` for each `m.room.member` event in the timeline. `change` is the object returned by `getMembershipChange`.
+
+| Property | Type | Description |
+|---|---|---|
+| `roomId` | `string` | ID of the room |
+| `change` | `Object` | Parsed membership change (see `getMembershipChange`) |
+| `event` | `Object` | The raw Matrix event |
+
+```js
+mx.on('memberUpdate', ({ roomId, change }) => {
+    console.log(`[${roomId}] ${change.userId} — ${change.type}`);
+});
+```
+
+---
+
+### Event: mention
+
+Emitted when an incoming message event contains a reference to the current user's ID. This event is not emitted by `processSyncData`; emit it manually inside your `message` handler using `isMention`.
+
+| Property | Type | Description |
+|---|---|---|
+| `roomId` | `string` | ID of the room the mention occurred in |
+| `event` | `Object` | The raw Matrix room event |
+| `room` | `Object` | The room object from your local state |
+
+```js
+mx.on('message', ({ roomId, event }) => {
+    if (mx.isMention(event, mx.userId)) {
+        mx.emit('mention', { roomId, event, room: myRooms.get(roomId) });
+    }
+});
+
+mx.on('mention', ({ roomId, event }) => {
+    console.log(`Mentioned in ${roomId} by ${event.sender}`);
+});
+```
+
+---
+
+### Event: message
+
+Emitted by `processSyncData` for each new (non-edit) `m.room.message` event.
+
+| Property | Type | Description |
+|---|---|---|
+| `roomId` | `string` | ID of the room |
+| `event` | `Object` | The raw Matrix message event |
+
+```js
+mx.on('message', ({ roomId, event }) => {
+    console.log(`[${roomId}] ${event.sender}: ${event.content.body}`);
+});
+```
+
+---
+
+### Event: roomJoin
+
+Emitted by `processSyncData` the first time a room appears in a sync response (i.e. the client joined a new room or this is the first sync).
+
+| Property | Type | Description |
+|---|---|---|
+| `roomId` | `string` | ID of the newly joined room |
+
+```js
+mx.on('roomJoin', ({ roomId }) => {
+    console.log(`Joined room ${roomId}`);
+});
+```
+
+---
+
+### Event: roomLeave
+
+Emitted by `processSyncData` when the client has left or been removed from a room.
+
+| Property | Type | Description |
+|---|---|---|
+| `roomId` | `string` | ID of the room that was left |
+
+```js
+mx.on('roomLeave', ({ roomId }) => {
+    console.log(`Left room ${roomId}`);
+});
+```
+
+---
+
+### Event: typing
+
+Emitted by `processSyncData` whenever the set of typing users in a room changes.
+
+| Property | Type | Description |
+|---|---|---|
+| `roomId` | `string` | ID of the room |
+| `userIds` | `string[]` | Current list of typing user IDs |
+
+```js
+mx.on('typing', ({ roomId, userIds }) => {
+    console.log(`${userIds.join(', ')} is typing in ${roomId}`);
+});
+```
 
 ---
 

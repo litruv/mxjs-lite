@@ -39,6 +39,9 @@ export class MxjsClient {
   /** @type {Map<string, Set<function>>} */
   #handlers = new Map();
 
+  /** @type {Set<string>} Tracks room IDs seen in sync responses to detect new joins. */
+  #knownRoomIds = new Set();
+
   /**
    * @param {object} [options]
    * @param {string} [options.homeserver="https://matrix.org"] - The Matrix homeserver base URL.
@@ -126,7 +129,9 @@ export class MxjsClient {
   #storeSession(data) {
     this.accessToken = data.access_token;
     this.userId = data.user_id;
-    return { accessToken: data.access_token, userId: data.user_id };
+    const session = { accessToken: data.access_token, userId: data.user_id };
+    this.emit('connect', session);
+    return session;
   }
 
   /**
@@ -202,6 +207,8 @@ export class MxjsClient {
   logout() {
     this.accessToken = null;
     this.userId = null;
+    this.#knownRoomIds.clear();
+    this.emit('disconnect');
   }
 
   /**
@@ -810,6 +817,7 @@ export class MxjsClient {
 
   /**
    * Performs a single `/sync` poll to retrieve new events from the homeserver.
+   * Pass the returned data to {@link processSyncData} to receive named events.
    * @param {string|null} [since=null] - The sync token from a previous sync response.
    * @param {number} [timeout=0] - Long-poll timeout in milliseconds.
    * @returns {Promise<Object|null>} The raw sync response, or `null` on failure.
@@ -823,6 +831,57 @@ export class MxjsClient {
     } catch (e) {
       cerr("sync:", e);
       return null;
+    }
+  }
+
+  /**
+   * Processes a sync response and emits structured events for new activity.
+   * Call this with the data returned by {@link sync} after each poll.
+   *
+   * Emits:
+   * - `roomJoin` `{ roomId }` — a room appeared in the sync response for the first time.
+   * - `roomLeave` `{ roomId }` — the client has left or been removed from a room.
+   * - `invite` `{ roomId }` — the client received a room invitation.
+   * - `message` `{ roomId, event }` — a new (non-edit) `m.room.message` event.
+   * - `memberUpdate` `{ roomId, change, event }` — a membership change; `change` is the
+   *   object returned by {@link getMembershipChange}.
+   * - `typing` `{ roomId, userIds }` — the current set of typing users in a room changed.
+   *
+   * @param {Object} data - The sync response as returned by {@link sync}.
+   */
+  processSyncData(data) {
+    if (!data) return;
+
+    for (const [roomId, roomData] of Object.entries(data.rooms?.join ?? {})) {
+      if (!this.#knownRoomIds.has(roomId)) {
+        this.#knownRoomIds.add(roomId);
+        this.emit('roomJoin', { roomId });
+      }
+
+      for (const event of roomData.timeline?.events ?? []) {
+        if (event.type === M_MSG && !this.isEditEvent(event)) {
+          this.emit('message', { roomId, event });
+        }
+        if (event.type === M_MEMBER) {
+          const change = this.getMembershipChange(event);
+          if (change) this.emit('memberUpdate', { roomId, change, event });
+        }
+      }
+
+      for (const event of roomData.ephemeral?.events ?? []) {
+        if (event.type === 'm.typing') {
+          this.emit('typing', { roomId, userIds: event.content?.user_ids ?? [] });
+        }
+      }
+    }
+
+    for (const roomId of Object.keys(data.rooms?.leave ?? {})) {
+      this.#knownRoomIds.delete(roomId);
+      this.emit('roomLeave', { roomId });
+    }
+
+    for (const roomId of Object.keys(data.rooms?.invite ?? {})) {
+      this.emit('invite', { roomId });
     }
   }
 
