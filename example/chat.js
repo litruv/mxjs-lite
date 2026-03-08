@@ -7,8 +7,6 @@ import MxjsClient from '../mxjs-lite.js';
 class ChatClient {
     constructor() {
         this.client = null;         // MxjsClient instance, created on connect
-        this.accessToken = null;
-        this.userId = null;
         this.roomId = null;
         this.syncToken = null;
         this.syncing = false;
@@ -100,7 +98,7 @@ class ChatClient {
         time.textContent = this.formatTime(timestamp);
         
         const senderEl = document.createElement('span');
-        senderEl.className = sender === this.userId ? 'message-sender self' : 'message-sender';
+        senderEl.className = sender === this.client?.userId ? 'message-sender self' : 'message-sender';
         senderEl.textContent = this.getDisplayName(sender);
         
         const contentEl = document.createElement('span');
@@ -143,7 +141,7 @@ class ChatClient {
         this.elements.userList.innerHTML = `
             <div class="user-count">${userCount} user${userCount !== 1 ? 's' : ''}</div>
             ${users.map(([userId, info]) => `
-                <div class="user-item ${userId === this.userId ? 'self' : ''}">
+                <div class="user-item ${userId === this.client?.userId ? 'self' : ''}">
                     ${info.displayName || this.getDisplayName(userId)}
                 </div>
             `).join('')}
@@ -188,21 +186,19 @@ class ChatClient {
                 this.addSystemMessage(`Logged in as ${authResult.userId}`);
             }
             
-            this.accessToken = authResult.accessToken;
-            this.userId = authResult.userId;
             this.password = password; // Kept for deactivation
             this.nickname = username;
-            
+
             // Join room
             this.addSystemMessage(`Joining ${roomAlias}...`);
-            const joinResult = await this.client.joinRoom(roomAlias, this.accessToken);
-            
+            const joinResult = await this.client.joinRoom(roomAlias);
+
             if (!joinResult) throw new Error(`Failed to join room - check alias and server`);
-            
+
             this.roomId = joinResult.roomId;
-            
+
             this.addSystemMessage(`Joined ${roomAlias}`);
-            this.setStatus('connected', `${this.userId}`);
+            this.setStatus('connected', this.client.userId);
             this.elements.topic.textContent = roomAlias;
             
             await this.loadMembers();
@@ -227,16 +223,15 @@ class ChatClient {
     async disconnect() {
         this.syncing = false;
 
-        if (this.isNewAccount && this.userId && this.password && this.accessToken) {
+        if (this.isNewAccount && this.client?.userId && this.password) {
             this.addSystemMessage('Deactivating temporary account...');
-            await this.client.deactivateAccount(this.userId, this.password, this.accessToken);
-            this.addSystemMessage(`Account ${this.userId} deactivated`);
+            const deactivatedId = this.client.userId;
+            await this.client.deactivateAccount(this.password);
+            this.addSystemMessage(`Account ${deactivatedId} deactivated`);
         } else {
             this.addSystemMessage('Disconnected');
         }
-        
-        this.accessToken = null;
-        this.userId = null;
+
         this.password = null;
         this.roomId = null;
         this.syncToken = null;
@@ -256,7 +251,7 @@ class ChatClient {
     
     async loadMembers() {
         try {
-            const members = await this.client.getRoomMembers(this.roomId, this.accessToken);
+            const members = await this.client.getRoomMembers(this.roomId);
             if (members) {
                 this.members.clear();
                 members.forEach(member => {
@@ -276,7 +271,7 @@ class ChatClient {
 
         while (this.syncing) {
             try {
-                const syncData = await this.client.sync(this.accessToken, this.syncToken, 30000);
+                const syncData = await this.client.sync(this.syncToken, 30000);
                 
                 if (!syncData || syncData.errcode) {
                     throw new Error('Sync failed');
@@ -353,7 +348,7 @@ class ChatClient {
                 await this.handleCommand(message);
             } else {
                 // Regular message
-                const result = await this.client.sendMessage(this.roomId, message, this.accessToken);
+                const result = await this.client.sendMessage(this.roomId, message);
                 
                 if (!result || !result.eventId) {
                     throw new Error('Failed to send message');
@@ -424,7 +419,7 @@ class ChatClient {
         
         try {
             this.addSystemMessage(`Joining ${roomAlias}...`);
-            const result = await this.client.joinRoom(roomAlias, this.accessToken);
+            const result = await this.client.joinRoom(roomAlias);
             
             if (!result) {
                 throw new Error(`Room not found or access denied: ${roomAlias}`);
@@ -452,7 +447,7 @@ class ChatClient {
         
         try {
             this.addSystemMessage('Leaving room...');
-            const left = await this.client.leaveRoom(this.roomId, this.accessToken);
+            const left = await this.client.leaveRoom(this.roomId);
             
             if (!left) {
                 throw new Error('Failed to leave room');
@@ -479,14 +474,11 @@ class ChatClient {
         
         try {
             this.addSystemMessage(`Creating room "${roomName}"...`);
-            const result = await this.client.createRoom(
-                {
-                    name: roomName,
-                    preset: 'public_chat',
-                    visibility: 'public'
-                },
-                this.accessToken
-            );
+            const result = await this.client.createRoom({
+                name: roomName,
+                preset: 'public_chat',
+                visibility: 'public'
+            });
             
             if (!result || !result.roomId) {
                 throw new Error('Server denied room creation');
@@ -514,18 +506,18 @@ class ChatClient {
         const newNick = args[0];
         
         try {
-            const success = await this.client.setDisplayName(this.userId, newNick, this.accessToken);
-            
+            const success = await this.client.setDisplayName(newNick);
+
             if (!success) {
                 throw new Error('Failed to set nickname');
             }
-            
+
             this.nickname = newNick;
             this.addSystemMessage(`Nickname changed to ${newNick}`);
-            
+
             // Update in member list
-            if (this.members.has(this.userId)) {
-                this.members.get(this.userId).displayName = newNick;
+            if (this.members.has(this.client.userId)) {
+                this.members.get(this.client.userId).displayName = newNick;
                 this.updateUserList();
             }
             
