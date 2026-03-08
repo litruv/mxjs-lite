@@ -600,18 +600,43 @@ export class MxjsClient {
     }
   }
 
+  /**
+   * Sets the name of a room.
+   * @param {string} roomId
+   * @param {string} name
+   * @returns {Promise<{eventId: string}|null>}
+   */
   async setRoomName(roomId, name) {
     return this.sendStateEvent(roomId, M_RNAME, { name });
   }
 
+  /**
+   * Sets the topic of a room.
+   * @param {string} roomId
+   * @param {string} topic
+   * @returns {Promise<{eventId: string}|null>}
+   */
   async setRoomTopic(roomId, topic) {
     return this.sendStateEvent(roomId, M_RTOPIC, { topic });
   }
 
+  /**
+   * Sets the avatar for a room.
+   * @param {string} roomId
+   * @param {string} url - An `mxc://` URI.
+   * @returns {Promise<{eventId: string}|null>}
+   */
   async setRoomAvatar(roomId, url) {
     return this.sendStateEvent(roomId, M_RAVATAR, { url });
   }
 
+  /**
+   * Fetches a specific state event from a room.
+   * @param {string} roomId
+   * @param {string} type - Matrix state event type.
+   * @param {string} [stateKey=""]
+   * @returns {Promise<Object|null>} The state event content, or `null` on failure.
+   */
   async getRoomState(roomId, type, stateKey = "") {
     try {
       const result = await this.api(
@@ -623,18 +648,30 @@ export class MxjsClient {
       return null;
     }
   }
+
   /**
-   * Fetches the current joined members of a room.
+   * Gets the name of a room.
    * @param {string} roomId
-   * @returns {Promise<Array<{userId: string, displayName: string}>|null>}
-   */  async getRoomName(roomId) {
+   * @returns {Promise<string|null>}
+   */
+  async getRoomName(roomId) {
     return (await this.getRoomState(roomId, M_RNAME))?.name ?? null;
   }
 
+  /**
+   * Gets the topic of a room.
+   * @param {string} roomId
+   * @returns {Promise<string|null>}
+   */
   async getRoomTopic(roomId) {
     return (await this.getRoomState(roomId, M_RTOPIC))?.topic ?? null;
   }
 
+  /**
+   * Fetches a snapshot of common room state (name, topic, avatar, power levels, members).
+   * @param {string} roomId
+   * @returns {Promise<{name: string|null, topic: string|null, avatarUrl: string|null, canonicalAlias: string|null, powerLevels: Object|null, members: Array<{userId: string, displayName: string|null, membership: string}>}|null>}
+   */
   async getRoomAllState(roomId) {
     try {
       const result = await this.api(`/rooms/${roomId}/state`);
@@ -662,11 +699,26 @@ export class MxjsClient {
     }
   }
 
+  /**
+   * Removes a reaction by redacting its event.
+   * @param {string} roomId
+   * @param {string} reactionEventId - The event ID of the reaction to remove.
+   * @returns {Promise<boolean>} `true` on success.
+   */
   async removeReaction(roomId, reactionEventId) {
     const result = await this.redactEvent(roomId, reactionEventId);
     return result !== null;
   }
 
+  /**
+   * Fetches a page of messages from a room's timeline.
+   * @param {string} roomId
+   * @param {object} [options]
+   * @param {string|null} [options.from=null] - Pagination token to start from.
+   * @param {number} [options.limit=50] - Maximum number of events to return.
+   * @param {string} [options.dir="b"] - Direction: `"b"` (backwards) or `"f"` (forwards).
+   * @returns {Promise<{messages: Object[], start: string, end: string}|null>}
+   */
   async getMessages(roomId, { from = null, limit = 50, dir = "b" } = {}) {
     try {
       const endpoint = `/rooms/${roomId}/messages?dir=${dir}&limit=${limit}${from ? "&from=" + enc(from) : ""}`;
@@ -684,6 +736,13 @@ export class MxjsClient {
     }
   }
 
+  /**
+   * Sends a typing notification to a room.
+   * @param {string} roomId
+   * @param {boolean} typing - `true` to indicate typing, `false` to stop.
+   * @param {number} [timeout=30000] - How long (ms) the typing indicator should remain active.
+   * @returns {Promise<boolean>} `true` on success.
+   */
   async sendTyping(roomId, typing, timeout = 30000) {
     try {
       return !(
@@ -699,6 +758,12 @@ export class MxjsClient {
     }
   }
 
+  /**
+   * Marks an event as read by sending a read receipt.
+   * @param {string} roomId
+   * @param {string} eventId
+   * @returns {Promise<boolean>} `true` on success.
+   */
   async sendReadReceipt(roomId, eventId) {
     try {
       return !(
@@ -714,6 +779,13 @@ export class MxjsClient {
     }
   }
 
+  /**
+   * Uploads binary media to the homeserver's media repository.
+   * @param {Blob|ArrayBuffer|FormData} data - The media data to upload.
+   * @param {string} contentType - MIME type (e.g. `"image/png"`).
+   * @param {string} [filename=""] - Optional filename hint.
+   * @returns {Promise<{contentUri: string}|null>} The `mxc://` content URI, or `null` on failure.
+   */
   async uploadMedia(data, contentType, filename = "") {
     try {
       const qs = filename ? `?filename=${enc(filename)}` : "";
@@ -736,6 +808,12 @@ export class MxjsClient {
     }
   }
 
+  /**
+   * Performs a single `/sync` poll to retrieve new events from the homeserver.
+   * @param {string|null} [since=null] - The sync token from a previous sync response.
+   * @param {number} [timeout=0] - Long-poll timeout in milliseconds.
+   * @returns {Promise<Object|null>} The raw sync response, or `null` on failure.
+   */
   async sync(since = null, timeout = 0) {
     try {
       const result = await this.api(
@@ -748,18 +826,35 @@ export class MxjsClient {
     }
   }
 
+  /**
+   * Registers a listener for a named event.
+   * @param {string} event - Event name.
+   * @param {function} fn - Listener callback.
+   * @returns {this}
+   */
   on(event, fn) {
     if (!this.#handlers.has(event)) this.#handlers.set(event, new Set());
     this.#handlers.get(event).add(fn);
     return this;
   }
 
+  /**
+   * Removes a listener (or all listeners) for a named event.
+   * @param {string} event - Event name.
+   * @param {function} [fn] - Specific listener to remove. Omit to remove all listeners for the event.
+   * @returns {this}
+   */
   off(event, fn) {
     if (fn) this.#handlers.get(event)?.delete(fn);
     else this.#handlers.delete(event);
     return this;
   }
 
+  /**
+   * Emits a named event, invoking all registered listeners with the provided arguments.
+   * @param {string} event - Event name.
+   * @param {...*} args - Arguments forwarded to each listener.
+   */
   emit(event, ...args) {
     this.#handlers.get(event)?.forEach((fn) => {
       try {
@@ -770,6 +865,12 @@ export class MxjsClient {
     });
   }
 
+  /**
+   * Checks whether a message event mentions a user.
+   * @param {Object} event - A Matrix room event.
+   * @param {string} userId - The user ID to check for.
+   * @returns {boolean}
+   */
   isMention(event, userId) {
     if (!event?.content || !userId) return false;
     if (event.type !== M_MSG) return false;
@@ -779,16 +880,31 @@ export class MxjsClient {
     return body.includes(userId) || formattedBody.includes(userId);
   }
 
+  /**
+   * Returns the `m.relates_to` relation object from an event, if present.
+   * @param {Object} event - A Matrix room event.
+   * @returns {Object|null}
+   */
   getEventRelation(event) {
     return event?.content?.[M_REL] ?? null;
   }
 
+  /**
+   * Checks whether an event is a message edit (`m.replace` relation).
+   * @param {Object} event - A Matrix room event.
+   * @returns {boolean}
+   */
   isEditEvent(event) {
     if (event?.type !== M_MSG) return false;
     const rel = this.getEventRelation(event);
     return rel?.rel_type === M_REPLACE && !!rel.event_id;
   }
 
+  /**
+   * Checks whether an event is a reaction annotation (`m.annotation`).
+   * @param {Object} event - A Matrix room event.
+   * @returns {boolean}
+   */
   isReactionEvent(event) {
     return (
       event?.type === M_REACT &&
@@ -796,15 +912,32 @@ export class MxjsClient {
     );
   }
 
+  /**
+   * Extracts the text body from an edited message event.
+   * Falls back to the regular `body` if no `m.new_content` is present.
+   * @param {Object} event - A Matrix room event.
+   * @returns {string|null}
+   */
   getEditedBody(event) {
     if (!event?.content) return null;
     return event.content[M_NEWCONT]?.body || event.content.body || null;
   }
 
+  /**
+   * Returns the previous content (`unsigned.prev_content`) of a state event, if present.
+   * @param {Object} event - A Matrix room event.
+   * @returns {Object|null}
+   */
   getPrevContent(event) {
     return event?.unsigned?.prev_content ?? null;
   }
 
+  /**
+   * Interprets an `m.room.member` event and returns a structured description of the membership change.
+   * @param {Object} event - A Matrix `m.room.member` state event.
+   * @returns {{type: "join"|"rename"|"leave"|"kick"|"ban"|"unknown", userId: string, displayName: string|null, prevDisplayName: string|null, kicker: string|null}|null}
+   *   Returns `null` if the event is not an `m.room.member` type or produces no meaningful change.
+   */
   getMembershipChange(event) {
     if (event?.type !== M_MEMBER) return null;
     const userId = event.state_key;
@@ -854,18 +987,38 @@ export class MxjsClient {
     };
   }
 
+  /**
+   * Checks whether an event is an image message.
+   * @param {Object} event - A Matrix room event.
+   * @returns {boolean}
+   */
   isImageMessage(event) {
     return event?.type === M_MSG && event.content?.msgtype === M_IMAGE;
   }
 
+  /**
+   * Checks whether a message event contains an HTML-formatted body.
+   * @param {Object} event - A Matrix room event.
+   * @returns {boolean}
+   */
   hasFormattedBody(event) {
     return event?.content?.format === M_HTML && !!event.content.formatted_body;
   }
 
+  /**
+   * Extracts the localpart from a Matrix user ID (the segment before the colon).
+   * @param {string} userId - A Matrix user ID (e.g. `@alice:example.com`).
+   * @returns {string} The localpart, or `"?"` if extraction fails.
+   */
   extractLocalpart(userId) {
     return userId?.match(/^@([^:]+):/)?.[1] ?? userId ?? "?";
   }
 
+  /**
+   * Escapes HTML special characters in a plain-text string.
+   * @param {string} text
+   * @returns {string}
+   */
   #escapeHtml(text) {
     return text
       .replace(/&/g, "&amp;")
@@ -873,6 +1026,12 @@ export class MxjsClient {
       .replace(/>/g, "&gt;");
   }
 
+  /**
+   * Replaces `@user:server` patterns in plain text with HTML anchor mention links.
+   * @param {string} text - Plain text possibly containing Matrix user IDs.
+   * @param {function(string): string} getDisplayName - Callback to resolve a user ID to a display name.
+   * @returns {string|null} HTML string with mentions linked, or `null` if no mentions were found.
+   */
   buildMentionHtml(text, getDisplayName) {
     const result = text.replace(/@(\S+:\S+)/g, (match, id) => {
       const userId = `@${id}`;
@@ -882,6 +1041,12 @@ export class MxjsClient {
     return result === text ? null : result;
   }
 
+  /**
+   * Sanitizes an HTML string, permitting only a safe subset of tags and converting
+   * Matrix mention links into `<span class="mention">` elements.
+   * @param {string} html - Raw HTML string to sanitize.
+   * @returns {string} The sanitized HTML string.
+   */
   sanitizeHtml(html) {
     if (typeof DOMParser === "undefined") return html;
 
@@ -937,6 +1102,11 @@ export class MxjsClient {
     return parts.join("");
   }
 
+  /**
+   * Fetches the most recent text message from a public room using the public read token.
+   * @param {string} roomAlias - The room alias to look up (e.g. `#room:server`).
+   * @returns {Promise<{sender: string, body: string, timestamp: number}|null>}
+   */
   async fetchPublicLastMessage(roomAlias) {
     if (!this.publicReadToken) {
       console.warn("No public read token");
@@ -973,6 +1143,11 @@ export class MxjsClient {
     }
   }
 
+  /**
+   * Fetches the presence status of a user using the public read token.
+   * @param {string} userId
+   * @returns {Promise<{presence: string, lastActive: number}|null>}
+   */
   async fetchPublicPresence(userId) {
     if (!this.publicReadToken) {
       console.warn("No public read token");

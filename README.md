@@ -1,164 +1,999 @@
-
 # mxjs-lite
 
-Lightweight Matrix protocol client library (modern ES module, class-based, event-driven).
+Lightweight Matrix protocol client. Pure ES module, no dependencies.
 
-## Features
-
-- 🚀 Lightweight, pure JavaScript, no dependencies
-- 📡 Full Matrix API: register, login, join/create rooms, send/edit/delete messages, reactions, state events
-- 👥 User presence, profile, avatar, power levels
-- 🏷️ Room state management: name, topic, avatar, alias, members
-- 🔔 Event system: `on`, `off`, `emit` for extensibility and custom hooks
-- 🧠 State management: fetch all room state, restore users/rooms
-- 📝 Mention detection, notification, sound alerts, visual highlights
-- 🔍 Public read: fetch public room messages and presence without authentication
-- 🖼️ Media upload: send images/files, avatar, room icon
-- 🧩 Modular example: autocomplete, context menus, IRC-style formatting, Dracula theme
-
-## Installation
-
-```bash
-npm install mxjs-lite
-```
-
-Or use as ES module:
-
-```javascript
+```js
 import MxjsClient from './mxjs-lite.js';
-```
-
-## Quick Start
-
-### Basic Usage
-
-```javascript
-import MxjsClient from 'mxjs-lite';
 
 const mx = new MxjsClient({ homeserver: 'https://matrix.org' });
-
-// Register as guest
-const { accessToken, userId } = await mx.registerGuest();
-
-// Set display name
-await mx.setDisplayName('MyNickname');
-
-// Resolve room alias
-const roomId = await mx.resolveRoomAlias('#room:matrix.org');
-
-// Join room
+await mx.login('alice', 's3cr3t');
+const roomId = await mx.resolveRoomAlias('#general:matrix.org');
 await mx.joinRoom(roomId);
-
-// Send message
 await mx.sendMessage(roomId, 'Hello, world!');
-
-// Sync messages
-const syncData = await mx.sync();
-
-// Listen for custom events
-mx.on('mention', (event) => {
-    // Handle mention notification
-});
 ```
 
-## Live Example
+---
 
-See [example/](example/) for a full-featured IRC-style chat interface:
+## Constructor
 
-```bash
-cd example
-# Open index.html in your browser or use:
-python -m http.server 8000
+```
+new MxjsClient([options])
 ```
 
-Features demonstrated:
-- Real-time message sync
-- User list, power levels
-- Autocomplete for slash commands and mentions
-- Context menus, message editing, reactions
-- Mention highlight, sound notification, browser notifications
-- Dracula theme, modular ES module structure
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `options.homeserver` | `string` | `"https://matrix.org"` | Homeserver base URL |
+| `options.publicReadToken` | `string \| null` | `null` | Token for unauthenticated public reads |
 
-See [example/README.md](example/README.md) for details.
+---
 
-### Public API (Unauthenticated)
+## Properties
 
-Fetch public data without registration:
+| Name |
+|---|
+| [`.homeserver`](#homeserver) |
+| [`.accessToken`](#accesstoken) |
+| [`.userId`](#userid) |
+| [`.publicReadToken`](#publicreadtoken) |
 
-```javascript
-const mx = new MxjsClient({
-    homeserver: 'https://matrix.org',
-    publicReadToken: 'your_public_read_token'
-});
+---
 
-// Get latest public message
-const message = await mx.fetchPublicLastMessage('#room:matrix.org');
-console.log(`${message.sender}: ${message.body}`);
+## Methods
 
-// Get user presence
-const presence = await mx.fetchPublicPresence('@user:matrix.org');
-console.log(`User is ${presence.presence}`);
+### Authentication
+
+| Method |
+|---|
+| [`.register()`](#registerusername-password) |
+| [`.registerGuest()`](#registerguest) |
+| [`.login()`](#loginusername-password) |
+| [`.logout()`](#logout) |
+| [`.deactivateAccount()`](#deactivateaccountpassword) |
+| [`.changePassword()`](#changepasswordoldpassword-newpassword) |
+
+### Profile
+
+| Method |
+|---|
+| [`.getProfile()`](#getprofileuserid) |
+| [`.setDisplayName()`](#setdisplaynamedisplayname) |
+| [`.setAvatarUrl()`](#setavatarurlavatarurl) |
+| [`.mxcToHttp()`](#mxctohttpmxcurl) |
+
+### Rooms
+
+| Method |
+|---|
+| [`.resolveRoomAlias()`](#resolveroomaliastoomalias) |
+| [`.joinRoom()`](#joinroomroomidoralias) |
+| [`.createRoom()`](#createroomoptions) |
+| [`.leaveRoom()`](#leaveroomroomid) |
+| [`.inviteUser()`](#inviteuserroomid-userid) |
+| [`.kickUser()`](#kickuserroomid-userid-reason) |
+| [`.banUser()`](#banuserroomid-userid-reason) |
+| [`.unbanUser()`](#unbanuserroomid-userid) |
+| [`.getRoomMembers()`](#getroommembersroomid) |
+
+### Messages
+
+| Method |
+|---|
+| [`.sendMessage()`](#sendmessageroomid-message-formattedbody) |
+| [`.sendImage()`](#sendimageroomid-url-body-info) |
+| [`.editMessage()`](#editmessageroomid-eventid-newmessage) |
+| [`.redactEvent()`](#redacteventroomid-eventid-reason) |
+| [`.reactToMessage()`](#reacttomessageroomid-eventid-reaction) |
+| [`.removeReaction()`](#removereactionroomid-reactioneventid) |
+| [`.getMessages()`](#getmessagesroomid-options) |
+| [`.sendTyping()`](#sendtypingroomid-typing-timeout) |
+| [`.sendReadReceipt()`](#sendreadreceiptroomid-eventid) |
+
+### Room State
+
+| Method |
+|---|
+| [`.sendStateEvent()`](#sendstateeventroomid-type-content-statekey) |
+| [`.setRoomName()`](#setroomnameroomid-name) |
+| [`.setRoomTopic()`](#setroomtopicroomid-topic) |
+| [`.setRoomAvatar()`](#setroomavatarroomid-url) |
+| [`.getRoomState()`](#getroomstateroomid-type-statekey) |
+| [`.getRoomName()`](#getroomnameroomid) |
+| [`.getRoomTopic()`](#getroomtopicroomid) |
+| [`.getRoomAllState()`](#getroomallstateroomid) |
+
+### Media & Sync
+
+| Method |
+|---|
+| [`.uploadMedia()`](#uploadmediadata-contenttype-filename) |
+| [`.sync()`](#syncsince-timeout) |
+
+### Event System
+
+| Method |
+|---|
+| [`.on()`](#onevent-fn) |
+| [`.off()`](#offevent-fn) |
+| [`.emit()`](#emitevent-args) |
+
+### Event Helpers
+
+| Method |
+|---|
+| [`.isMention()`](#ismentonevent-userid) |
+| [`.getEventRelation()`](#geteventrelationevent) |
+| [`.isEditEvent()`](#isediteventevent) |
+| [`.isReactionEvent()`](#isreactioneventevent) |
+| [`.getEditedBody()`](#geteditedBodyevent) |
+| [`.getPrevContent()`](#getprevcontentevent) |
+| [`.getMembershipChange()`](#getmembershipchangeevent) |
+| [`.isImageMessage()`](#isimagemessageevent) |
+| [`.hasFormattedBody()`](#hasformattedbodyevent) |
+| [`.extractLocalpart()`](#extractlocalpartuserid) |
+
+### HTML Utilities
+
+| Method |
+|---|
+| [`.buildMentionHtml()`](#buildmentionhtmltext-getdisplayname) |
+| [`.sanitizeHtml()`](#sanitizehtmlhtml) |
+
+### Public / Unauthenticated
+
+| Method |
+|---|
+| [`.fetchPublicLastMessage()`](#fetchpubliclastmessageroomalias) |
+| [`.fetchPublicPresence()`](#fetchpublicpresenceuserid) |
+
+### Low-level
+
+| Method |
+|---|
+| [`.api()`](#apiendpoint-method-body-accesstoken) |
+
+---
+
+## Property Details
+
+### .homeserver
+**Type:** `string`
+
+The base URL of the Matrix homeserver used for all API requests.
+
+---
+
+### .accessToken
+**Type:** `string | null`
+
+The access token for the currently authenticated session. Set automatically by [`login`](#loginusername-password), [`register`](#registerusername-password), and [`registerGuest`](#registerguest). Cleared by [`logout`](#logout).
+
+---
+
+### .userId
+**Type:** `string | null`
+
+The Matrix user ID (e.g. `@alice:matrix.org`) of the currently authenticated user. Set alongside [`accessToken`](#accesstoken).
+
+---
+
+### .publicReadToken
+**Type:** `string | null`
+
+An access token used for unauthenticated public read operations via [`fetchPublicLastMessage`](#fetchpubliclastmessageroomalias) and [`fetchPublicPresence`](#fetchpublicpresenceuserid).
+
+---
+
+## Method Details
+
+### .register(username, password)
+
+Registers a new account on the homeserver using the `m.login.dummy` UIAA flow.
+
+| Parameter | Type | Description |
+|---|---|---|
+| `username` | `string` | Desired username |
+| `password` | `string` | Account password |
+
+**Returns:** `Promise<{ accessToken: string, userId: string } | null>`
+
+```js
+const session = await mx.register('alice', 's3cr3t');
 ```
 
-## API Reference
+---
 
-### Class: `MxjsClient`
+### .registerGuest()
 
-#### Constructor
+Registers an anonymous guest account. No credentials required.
 
-`new MxjsClient({ homeserver, publicReadToken })`
+**Returns:** `Promise<{ accessToken: string, userId: string } | null>`
 
-#### Core Methods
+```js
+const session = await mx.registerGuest();
+```
 
-- `register(username, password)`
-- `registerGuest()`
-- `login(username, password)`
-- `logout()`
-- `deactivateAccount(password)`
-- `changePassword(oldPassword, newPassword)`
-- `getProfile(userId?)`
-- `setDisplayName(displayName)`
-- `setAvatarUrl(avatarUrl)`
-- `mxcToHttp(mxcUrl)`
-- `resolveRoomAlias(roomAlias)`
-- `joinRoom(roomIdOrAlias)`
-- `createRoom(options)`
-- `leaveRoom(roomId)`
-- `inviteUser(roomId, userId)`
-- `kickUser(roomId, userId, reason?)`
-- `banUser(roomId, userId, reason?)`
-- `unbanUser(roomId, userId)`
-- `getRoomMembers(roomId)`
-- `sendMessage(roomId, message, formattedBody?)`
-- `sendImage(roomId, url, body?, info?)`
-- `editMessage(roomId, eventId, newMessage)`
-- `redactEvent(roomId, eventId, reason?)`
-- `reactToMessage(roomId, eventId, reaction)`
-- `sendStateEvent(roomId, type, content, stateKey?)`
-- `setRoomName(roomId, name)`
-- `setRoomTopic(roomId, topic)`
-- `setRoomAvatar(roomId, url)`
-- `getRoomState(roomId, type, stateKey?)`
-- `getRoomName(roomId)`
-- `getRoomTopic(roomId)`
-- `getRoomAllState(roomId)`
-- `removeReaction(roomId, reactionEventId)`
-- `getMessages(roomId, { from, limit, dir })`
-- `sendTyping(roomId, typing, timeout?)`
-- `sendReadReceipt(roomId, eventId)`
-- `uploadMedia(data, contentType, filename?)`
-- `sync(since?, timeout?)`
+---
 
-#### Event System
+### .login(username, password)
 
-- `on(event, fn)` — Register event listener
-- `off(event, fn?)` — Remove event listener
-- `emit(event, ...args)` — Emit custom event
+Authenticates with an existing account using `m.login.password`.
 
-#### Public API (Unauthenticated)
+| Parameter | Type | Description |
+|---|---|---|
+| `username` | `string` | Account username |
+| `password` | `string` | Account password |
 
-- `fetchPublicLastMessage(roomAlias)`
-- `fetchPublicPresence(userId)`
+**Returns:** `Promise<{ accessToken: string, userId: string } | null>`
+
+```js
+const session = await mx.login('alice', 's3cr3t');
+```
+
+---
+
+### .logout()
+
+Clears the local `accessToken` and `userId`. Does not call the homeserver logout endpoint.
+
+**Returns:** `void`
+
+---
+
+### .deactivateAccount(password)
+
+Permanently deactivates the current user's account via UIAA confirmation.
+
+| Parameter | Type | Description |
+|---|---|---|
+| `password` | `string` | Current account password |
+
+**Returns:** `Promise<boolean>`
+
+---
+
+### .changePassword(oldPassword, newPassword)
+
+Changes the current user's password via UIAA confirmation.
+
+| Parameter | Type | Description |
+|---|---|---|
+| `oldPassword` | `string` | Current password |
+| `newPassword` | `string` | New password |
+
+**Returns:** `Promise<boolean>`
+
+---
+
+### .getProfile([userId])
+
+Fetches the display name and avatar URL for a user.
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `userId` | `string` | `this.userId` | Target user ID |
+
+**Returns:** `Promise<{ displayName: string | null, avatarUrl: string | null } | null>`
+
+```js
+const profile = await mx.getProfile('@alice:matrix.org');
+console.log(profile.displayName);
+```
+
+---
+
+### .setDisplayName(displayName)
+
+Sets the display name for the current user.
+
+| Parameter | Type | Description |
+|---|---|---|
+| `displayName` | `string` | New display name |
+
+**Returns:** `Promise<boolean>`
+
+---
+
+### .setAvatarUrl(avatarUrl)
+
+Sets the avatar for the current user.
+
+| Parameter | Type | Description |
+|---|---|---|
+| `avatarUrl` | `string` | An `mxc://` URI |
+
+**Returns:** `Promise<boolean>`
+
+---
+
+### .mxcToHttp(mxcUrl)
+
+Converts an `mxc://` URI to a full HTTP download URL on the current homeserver.
+
+| Parameter | Type | Description |
+|---|---|---|
+| `mxcUrl` | `string` | An `mxc://` URI |
+
+**Returns:** `string | null` — `null` if the input is not a valid `mxc://` URI.
+
+```js
+const url = mx.mxcToHttp('mxc://matrix.org/abc123');
+```
+
+---
+
+### .resolveRoomAlias(roomAlias)
+
+Resolves a room alias to its internal room ID.
+
+| Parameter | Type | Description |
+|---|---|---|
+| `roomAlias` | `string` | e.g. `#general:matrix.org` |
+
+**Returns:** `Promise<string | null>`
+
+```js
+const roomId = await mx.resolveRoomAlias('#general:matrix.org');
+```
+
+---
+
+### .joinRoom(roomIdOrAlias)
+
+Joins a room by room ID or alias.
+
+| Parameter | Type | Description |
+|---|---|---|
+| `roomIdOrAlias` | `string` | Room ID or alias |
+
+**Returns:** `Promise<{ roomId: string } | null>`
+
+---
+
+### .createRoom(options)
+
+Creates a new room. The `options` object is passed directly to the Matrix `POST /createRoom` endpoint.
+
+| Parameter | Type | Description |
+|---|---|---|
+| `options` | `Object` | Matrix room creation options |
+
+**Returns:** `Promise<{ roomId: string } | null>`
+
+```js
+const { roomId } = await mx.createRoom({ name: 'My Room', preset: 'public_chat' });
+```
+
+---
+
+### .leaveRoom(roomId)
+
+Leaves a room.
+
+| Parameter | Type | Description |
+|---|---|---|
+| `roomId` | `string` | Room ID |
+
+**Returns:** `Promise<boolean>`
+
+---
+
+### .inviteUser(roomId, userId)
+
+Invites a user to a room.
+
+| Parameter | Type | Description |
+|---|---|---|
+| `roomId` | `string` | Room ID |
+| `userId` | `string` | User to invite |
+
+**Returns:** `Promise<boolean>`
+
+---
+
+### .kickUser(roomId, userId[, reason])
+
+Kicks a user from a room.
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `roomId` | `string` | | Room ID |
+| `userId` | `string` | | User to kick |
+| `reason` | `string` | `""` | Optional reason |
+
+**Returns:** `Promise<boolean>`
+
+---
+
+### .banUser(roomId, userId[, reason])
+
+Bans a user from a room.
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `roomId` | `string` | | Room ID |
+| `userId` | `string` | | User to ban |
+| `reason` | `string` | `""` | Optional reason |
+
+**Returns:** `Promise<boolean>`
+
+---
+
+### .unbanUser(roomId, userId)
+
+Unbans a previously banned user.
+
+| Parameter | Type | Description |
+|---|---|---|
+| `roomId` | `string` | Room ID |
+| `userId` | `string` | User to unban |
+
+**Returns:** `Promise<boolean>`
+
+---
+
+### .getRoomMembers(roomId)
+
+Returns an array of currently joined members for a room.
+
+| Parameter | Type | Description |
+|---|---|---|
+| `roomId` | `string` | Room ID |
+
+**Returns:** `Promise<Array<{ userId: string, displayName: string }> | null>`
+
+---
+
+### .sendMessage(roomId, message[, formattedBody])
+
+Sends a plain text message. Optionally includes an HTML-formatted body.
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `roomId` | `string` | | Room ID |
+| `message` | `string` | | Plain text body |
+| `formattedBody` | `string \| null` | `null` | HTML body (`org.matrix.custom.html`) |
+
+**Returns:** `Promise<{ eventId: string } | null>`
+
+```js
+await mx.sendMessage(roomId, 'Hello!');
+await mx.sendMessage(roomId, 'Hello!', '<b>Hello!</b>');
+```
+
+---
+
+### .sendImage(roomId, url[, body[, info]])
+
+Sends an image message.
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `roomId` | `string` | | Room ID |
+| `url` | `string` | | An `mxc://` URI |
+| `body` | `string` | `"Image"` | Alt text / fallback label |
+| `info` | `Object` | `{}` | Image metadata (e.g. `w`, `h`, `mimetype`) |
+
+**Returns:** `Promise<{ eventId: string } | null>`
+
+---
+
+### .editMessage(roomId, eventId, newMessage)
+
+Edits a previously sent message using the `m.replace` relation.
+
+| Parameter | Type | Description |
+|---|---|---|
+| `roomId` | `string` | Room ID |
+| `eventId` | `string` | Event ID of the original message |
+| `newMessage` | `string` | Replacement text body |
+
+**Returns:** `Promise<{ eventId: string } | null>`
+
+---
+
+### .redactEvent(roomId, eventId[, reason])
+
+Redacts (deletes) a room event.
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `roomId` | `string` | | Room ID |
+| `eventId` | `string` | | Event to redact |
+| `reason` | `string` | `""` | Optional reason |
+
+**Returns:** `Promise<{ eventId: string } | null>`
+
+---
+
+### .reactToMessage(roomId, eventId, reaction)
+
+Sends a reaction annotation (`m.annotation`) to an event.
+
+| Parameter | Type | Description |
+|---|---|---|
+| `roomId` | `string` | Room ID |
+| `eventId` | `string` | Event to react to |
+| `reaction` | `string` | Reaction key, typically an emoji |
+
+**Returns:** `Promise<{ eventId: string } | null>`
+
+---
+
+### .removeReaction(roomId, reactionEventId)
+
+Removes a reaction by redacting its event.
+
+| Parameter | Type | Description |
+|---|---|---|
+| `roomId` | `string` | Room ID |
+| `reactionEventId` | `string` | Event ID of the reaction |
+
+**Returns:** `Promise<boolean>`
+
+---
+
+### .getMessages(roomId[, options])
+
+Fetches a page of events from a room's timeline.
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `roomId` | `string` | | Room ID |
+| `options.from` | `string \| null` | `null` | Pagination token |
+| `options.limit` | `number` | `50` | Maximum events to return |
+| `options.dir` | `string` | `"b"` | Direction: `"b"` (backwards) or `"f"` (forwards) |
+
+**Returns:** `Promise<{ messages: Object[], start: string, end: string } | null>`
+
+```js
+const page = await mx.getMessages(roomId, { limit: 30 });
+for (const event of page.messages) { /* ... */ }
+
+// Next page
+const nextPage = await mx.getMessages(roomId, { from: page.end });
+```
+
+---
+
+### .sendTyping(roomId, typing[, timeout])
+
+Sends a typing notification to a room.
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `roomId` | `string` | | Room ID |
+| `typing` | `boolean` | | `true` to start, `false` to stop |
+| `timeout` | `number` | `30000` | Active duration in ms |
+
+**Returns:** `Promise<boolean>`
+
+---
+
+### .sendReadReceipt(roomId, eventId)
+
+Marks an event as read by sending an `m.read` receipt.
+
+| Parameter | Type | Description |
+|---|---|---|
+| `roomId` | `string` | Room ID |
+| `eventId` | `string` | Event ID to mark as read |
+
+**Returns:** `Promise<boolean>`
+
+---
+
+### .sendStateEvent(roomId, type, content[, stateKey])
+
+Sends a raw state event to a room.
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `roomId` | `string` | | Room ID |
+| `type` | `string` | | Matrix event type |
+| `content` | `Object` | | Event content |
+| `stateKey` | `string` | `""` | Optional state key |
+
+**Returns:** `Promise<{ eventId: string } | null>`
+
+---
+
+### .setRoomName(roomId, name)
+
+Sets the name of a room (`m.room.name`).
+
+| Parameter | Type | Description |
+|---|---|---|
+| `roomId` | `string` | Room ID |
+| `name` | `string` | New room name |
+
+**Returns:** `Promise<{ eventId: string } | null>`
+
+---
+
+### .setRoomTopic(roomId, topic)
+
+Sets the topic of a room (`m.room.topic`).
+
+| Parameter | Type | Description |
+|---|---|---|
+| `roomId` | `string` | Room ID |
+| `topic` | `string` | New room topic |
+
+**Returns:** `Promise<{ eventId: string } | null>`
+
+---
+
+### .setRoomAvatar(roomId, url)
+
+Sets the avatar of a room (`m.room.avatar`).
+
+| Parameter | Type | Description |
+|---|---|---|
+| `roomId` | `string` | Room ID |
+| `url` | `string` | An `mxc://` URI |
+
+**Returns:** `Promise<{ eventId: string } | null>`
+
+---
+
+### .getRoomState(roomId, type[, stateKey])
+
+Fetches the content of a specific state event.
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `roomId` | `string` | | Room ID |
+| `type` | `string` | | Matrix state event type |
+| `stateKey` | `string` | `""` | Optional state key |
+
+**Returns:** `Promise<Object | null>`
+
+---
+
+### .getRoomName(roomId)
+
+Gets the current name of a room.
+
+| Parameter | Type | Description |
+|---|---|---|
+| `roomId` | `string` | Room ID |
+
+**Returns:** `Promise<string | null>`
+
+---
+
+### .getRoomTopic(roomId)
+
+Gets the current topic of a room.
+
+| Parameter | Type | Description |
+|---|---|---|
+| `roomId` | `string` | Room ID |
+
+**Returns:** `Promise<string | null>`
+
+---
+
+### .getRoomAllState(roomId)
+
+Fetches a snapshot of common room state in a single call.
+
+| Parameter | Type | Description |
+|---|---|---|
+| `roomId` | `string` | Room ID |
+
+**Returns:**
+```
+Promise<{
+  name:           string | null,
+  topic:          string | null,
+  avatarUrl:      string | null,
+  canonicalAlias: string | null,
+  powerLevels:    Object | null,
+  members: Array<{
+    userId:      string,
+    displayName: string | null,
+    membership:  string
+  }>
+} | null>
+```
+
+---
+
+### .uploadMedia(data, contentType[, filename])
+
+Uploads binary data to the homeserver's media repository. Tries the `v3` endpoint, falls back to `r0`.
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `data` | `Blob \| ArrayBuffer \| FormData` | | Media data |
+| `contentType` | `string` | | MIME type, e.g. `"image/png"` |
+| `filename` | `string` | `""` | Optional filename hint |
+
+**Returns:** `Promise<{ contentUri: string } | null>` — `contentUri` is an `mxc://` URI.
+
+```js
+const { contentUri } = await mx.uploadMedia(blob, 'image/jpeg', 'photo.jpg');
+await mx.sendImage(roomId, contentUri);
+```
+
+---
+
+### .sync([since[, timeout]])
+
+Performs a single `/sync` poll to retrieve new events.
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `since` | `string \| null` | `null` | Sync token from a previous response |
+| `timeout` | `number` | `0` | Long-poll timeout in ms |
+
+**Returns:** `Promise<Object | null>` — Raw Matrix sync response.
+
+```js
+let since = null;
+while (true) {
+    const data = await mx.sync(since, 30000);
+    since = data?.next_batch ?? since;
+}
+```
+
+---
+
+### .on(event, fn)
+
+Registers a listener for a named event.
+
+| Parameter | Type | Description |
+|---|---|---|
+| `event` | `string` | Event name |
+| `fn` | `function` | Callback |
+
+**Returns:** `this`
+
+```js
+mx.on('mention', (event) => alert(`Mentioned in ${event.room_id}`));
+```
+
+---
+
+### .off(event[, fn])
+
+Removes a listener, or all listeners for an event if `fn` is omitted.
+
+| Parameter | Type | Description |
+|---|---|---|
+| `event` | `string` | Event name |
+| `fn` | `function` *(optional)* | Specific listener to remove |
+
+**Returns:** `this`
+
+---
+
+### .emit(event, ...args)
+
+Emits a named event, invoking all registered listeners.
+
+| Parameter | Type | Description |
+|---|---|---|
+| `event` | `string` | Event name |
+| `...args` | `any` | Arguments forwarded to each listener |
+
+**Returns:** `void`
+
+---
+
+### .isMention(event, userId)
+
+Returns `true` if the event's body or formatted body contains a reference to `userId` and was not sent by `userId`.
+
+| Parameter | Type | Description |
+|---|---|---|
+| `event` | `Object` | A Matrix room event |
+| `userId` | `string` | User ID to check for |
+
+**Returns:** `boolean`
+
+---
+
+### .getEventRelation(event)
+
+Returns the `m.relates_to` object from an event's content, or `null`.
+
+| Parameter | Type | Description |
+|---|---|---|
+| `event` | `Object` | A Matrix room event |
+
+**Returns:** `Object | null`
+
+---
+
+### .isEditEvent(event)
+
+Returns `true` if the event is a message edit (`m.replace` relation).
+
+| Parameter | Type | Description |
+|---|---|---|
+| `event` | `Object` | A Matrix room event |
+
+**Returns:** `boolean`
+
+---
+
+### .isReactionEvent(event)
+
+Returns `true` if the event is a reaction annotation (`m.annotation`).
+
+| Parameter | Type | Description |
+|---|---|---|
+| `event` | `Object` | A Matrix room event |
+
+**Returns:** `boolean`
+
+---
+
+### .getEditedBody(event)
+
+Extracts the text body from an edit event's `m.new_content`, falling back to the regular `body`.
+
+| Parameter | Type | Description |
+|---|---|---|
+| `event` | `Object` | A Matrix room event |
+
+**Returns:** `string | null`
+
+---
+
+### .getPrevContent(event)
+
+Returns `unsigned.prev_content` from a state event, or `null`.
+
+| Parameter | Type | Description |
+|---|---|---|
+| `event` | `Object` | A Matrix room event |
+
+**Returns:** `Object | null`
+
+---
+
+### .getMembershipChange(event)
+
+Interprets an `m.room.member` event and returns a structured summary of the change.
+
+| Parameter | Type | Description |
+|---|---|---|
+| `event` | `Object` | A Matrix `m.room.member` event |
+
+**Returns:**
+```
+{
+  type:            "join" | "rename" | "leave" | "kick" | "ban" | "unknown",
+  userId:          string,
+  displayName:     string | null,
+  prevDisplayName: string | null,
+  kicker:          string | null
+} | null
+```
+
+Returns `null` for non-member events or no meaningful change.
+
+---
+
+### .isImageMessage(event)
+
+Returns `true` if the event is a message of type `m.image`.
+
+| Parameter | Type | Description |
+|---|---|---|
+| `event` | `Object` | A Matrix room event |
+
+**Returns:** `boolean`
+
+---
+
+### .hasFormattedBody(event)
+
+Returns `true` if the event has an `org.matrix.custom.html` formatted body.
+
+| Parameter | Type | Description |
+|---|---|---|
+| `event` | `Object` | A Matrix room event |
+
+**Returns:** `boolean`
+
+---
+
+### .extractLocalpart(userId)
+
+Extracts the localpart from a Matrix user ID (the segment before the `:`).
+
+| Parameter | Type | Description |
+|---|---|---|
+| `userId` | `string` | e.g. `@alice:matrix.org` |
+
+**Returns:** `string` — The localpart (e.g. `alice`), or `"?"` on failure.
+
+---
+
+### .buildMentionHtml(text, getDisplayName)
+
+Scans plain text for `@user:server` patterns and wraps each match in an anchor link pointing to `matrix.to`.
+
+| Parameter | Type | Description |
+|---|---|---|
+| `text` | `string` | Plain text potentially containing Matrix user IDs |
+| `getDisplayName` | `function(userId): string` | Callback to resolve a user ID to a display name |
+
+**Returns:** `string | null` — HTML string with mentions linked, or `null` if no mentions were found.
+
+```js
+const html = mx.buildMentionHtml('cc @alice:matrix.org', (id) => members[id] ?? id);
+```
+
+---
+
+### .sanitizeHtml(html)
+
+Sanitizes an HTML string against a safe allowlist of tags. Matrix mention links (`<a href="https://matrix.to/#/@...">`) are converted to `<span class="mention">` elements.
+
+Allowed tags: `a`, `b`, `strong`, `i`, `em`, `code`, `del`, `s`, `u`, `span`, `br`.
+
+| Parameter | Type | Description |
+|---|---|---|
+| `html` | `string` | Raw HTML to sanitize |
+
+**Returns:** `string`
+
+> Requires `DOMParser` (browser environment). In Node, returns the input unchanged.
+
+---
+
+### .fetchPublicLastMessage(roomAlias)
+
+Fetches the most recent text message from a public room without authentication. Requires [`publicReadToken`](#publicreadtoken) to be set.
+
+| Parameter | Type | Description |
+|---|---|---|
+| `roomAlias` | `string` | e.g. `#general:matrix.org` |
+
+**Returns:** `Promise<{ sender: string, body: string, timestamp: number } | null>`
+
+```js
+const mx = new MxjsClient({ homeserver: 'https://matrix.org', publicReadToken: 'tok' });
+const msg = await mx.fetchPublicLastMessage('#general:matrix.org');
+console.log(`${msg.sender}: ${msg.body}`);
+```
+
+---
+
+### .fetchPublicPresence(userId)
+
+Fetches the presence status for a user without authentication. Requires [`publicReadToken`](#publicreadtoken) to be set.
+
+| Parameter | Type | Description |
+|---|---|---|
+| `userId` | `string` | e.g. `@alice:matrix.org` |
+
+**Returns:** `Promise<{ presence: string, lastActive: number } | null>`
+
+---
+
+### .api(endpoint[, method[, body[, accessToken]]])
+
+Makes a raw request to the Matrix Client-Server API at `/_matrix/client/r0`.
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `endpoint` | `string` | | Path relative to `/_matrix/client/r0` |
+| `method` | `string` | `"GET"` | HTTP method |
+| `body` | `Object \| null` | `null` | Request body, serialized as JSON |
+| `accessToken` | `string \| null` | `this.accessToken` | Bearer token override |
+
+**Returns:** `Promise<Object>` — Parsed JSON response.
+
+Automatically retries once if the server returns `M_LIMIT_EXCEEDED`, waiting the requested `retry_after_ms`.
+
+---
 
 ## License
 
