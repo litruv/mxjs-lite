@@ -1,5 +1,5 @@
 {
-  "name": "mxjs-lite",
+  "name": "@litruv/mxjs-lite",
   "version": "1.0.0",
   "description": "Lightweight Matrix protocol client library",
   "main": "mxjs-lite.js",
@@ -33,6 +33,9 @@
   },
   "exports": {
     ".": "./mxjs-lite.js"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
   },
   "devDependencies": {
     "terser": "^5.46.0"
