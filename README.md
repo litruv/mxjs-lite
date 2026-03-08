@@ -992,9 +992,3 @@ Makes a raw request to the Matrix Client-Server API at `/_matrix/client/r0`.
 **Returns:** `Promise<Object>` — Parsed JSON response.
 
 Automatically retries once if the server returns `M_LIMIT_EXCEEDED`, waiting the requested `retry_after_ms`.
-
----
-
-## License
-
-MIT
