@@ -3,10 +3,16 @@
   "version": "1.0.0",
   "description": "Lightweight Matrix protocol client library",
   "main": "mxjs-lite.js",
+  "module": "mxjs-lite.js",
   "type": "module",
+  "files": [
+    "mxjs-lite.js",
+    "build/mxjs-lite.min.js"
+  ],
   "scripts": {
     "build": "terser mxjs-lite.js -c -m --module -o build/mxjs-lite.min.js",
-    "test": "node test.js"
+    "test": "node test.js",
+    "prepublishOnly": "npm run build"
   },
   "keywords": [
     "matrix",
@@ -17,9 +23,13 @@
   ],
   "author": "litruv",
   "license": "MIT",
+  "homepage": "https://litruv.github.io/mxjs-lite/",
   "repository": {
     "type": "git",
-    "url": "http://synbox.ruv.wtf:8418/litruv/mxjs-lite.git"
+    "url": "https://github.com/litruv/mxjs-lite.git"
+  },
+  "bugs": {
+    "url": "https://github.com/litruv/mxjs-lite/issues"
   },
   "exports": {
     ".": "./mxjs-lite.js"
