@@ -105,6 +105,11 @@ export class ChatClient {
         });
     }
 
+    get #connectLabel() {
+        return this.authMode === 'guest' ? 'Connect as Guest'
+            : this.authMode === 'register' ? 'Register & Connect' : 'Login & Connect';
+    }
+
     setAuthMode(mode) {
         this.authMode = mode;
         ['register', 'login', 'guest'].forEach(m => {
@@ -113,8 +118,7 @@ export class ChatClient {
         const guest = mode === 'guest';
         this.elements.usernameInput.style.display = guest ? 'none' : '';
         this.elements.passwordInput.style.display = guest ? 'none' : '';
-        this.elements.connectBtn.textContent = guest ? 'Connect as Guest'
-            : mode === 'register' ? 'Register & Connect' : 'Login & Connect';
+        this.elements.connectBtn.textContent = this.#connectLabel;
     }
 
     setStatus(status, text) {
@@ -157,7 +161,7 @@ export class ChatClient {
         const r = room ?? this.rooms.get(this.activeRoomId);
         const m = r?.members.get(userId);
         if (m?.displayName) return m.displayName;
-        return userId?.match(/^@([^:]+):/)?.[1] ?? userId ?? '?';
+        return this.client?.extractLocalpart(userId) ?? userId ?? '?';
     }
 
     /**
@@ -206,7 +210,6 @@ export class ChatClient {
         if (room) { room.unreadCount = 0; }
         this.updateChannelList();
         this.updateUserList(room ?? null);
-        // Lazy-load history and members for rooms that haven't been fetched yet
         if (room && !room.historyLoaded) {
             this.loadMembers(room);
             this.#loadRoomHistory(room);
@@ -309,16 +312,16 @@ export class ChatClient {
      * @param {Object} event
      */
     renderEvent(room, event) {
-        if (event.type !== 'm.room.message' || !event.content) return;
-        if (event.content['m.relates_to']?.rel_type === 'm.replace') return;
+        if (event?.type !== 'm.room.message' || !event.content) return;
+        if (this.client.isEditEvent(event)) return;
         const ts  = event.origin_server_ts || Date.now();
         const eid = event.event_id;
-        if (event.content.msgtype === 'm.image' && event.content.url) {
+        if (this.client.isImageMessage(event) && event.content.url) {
             this.#renderImage(room, event.sender, event.content.url, event.content.body || 'Image', ts, eid);
         } else if (event.content.body) {
             let content = event.content.body;
-            if (event.content.format === 'org.matrix.custom.html' && event.content.formatted_body) {
-                try { content = this.#sanitizeHtml(event.content.formatted_body); } catch { /* plain fallback */ }
+            if (this.client.hasFormattedBody(event)) {
+                try { content = this.#htmlToFragment(this.client.sanitizeHtml(event.content.formatted_body)); } catch { }
             }
             this.#renderMessage(room, event.sender, content, ts, eid);
         }
@@ -480,10 +483,10 @@ export class ChatClient {
      */
     async #loadRoomHistory(room) {
         if (room.historyLoaded) return;
-        room.historyLoaded = true;  // set eagerly to block concurrent calls
+        room.historyLoaded = true;
         const history = await this.client.getMessages(room.roomId, { limit: 50 });
         if (!history?.messages) {
-            room.historyLoaded = false;  // allow retry on failure
+            room.historyLoaded = false;
             return;
         }
         const messages = [...history.messages].reverse();
@@ -491,10 +494,9 @@ export class ChatClient {
         for (const event of messages) this.renderEvent(room, event);
         // Second pass – apply edits
         for (const event of messages) {
-            if (event.type !== 'm.room.message') continue;
-            const rel = event.content?.['m.relates_to'];
-            if (rel?.rel_type !== 'm.replace' || !rel.event_id) continue;
-            const newBody = event.content['m.new_content']?.body || event.content.body;
+            if (!this.client.isEditEvent(event)) continue;
+            const rel = this.client.getEventRelation(event);
+            const newBody = this.client.getEditedBody(event);
             const msgEl   = room.messagesEl?.querySelector(`[data-event-id="${rel.event_id}"]`);
             if (!msgEl) continue;
             const contentEl = msgEl.querySelector('.message-content');
@@ -532,12 +534,11 @@ export class ChatClient {
         try {
             this.client = new MxjsClient({ homeserver });
 
-            // Request notification permission once we have a client
             if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
                 Notification.requestPermission();
             }
 
-            // Mention handler — highlight message + browser notification
+            // Mention handler
             this.client.on('mention', ({ roomId, event, room }) => {
                 const msgEl = room.messagesEl?.querySelector(`[data-event-id="${event.event_id}"]`);
                 if (msgEl) msgEl.classList.add('mentioned');
@@ -601,8 +602,7 @@ export class ChatClient {
             this.addErrorMessage(error.message);
             this.setStatus('disconnected', 'Connection failed');
             this.elements.connectBtn.disabled    = false;
-            this.elements.connectBtn.textContent = this.authMode === 'guest' ? 'Connect as Guest'
-                : this.authMode === 'register' ? 'Register & Connect' : 'Login & Connect';
+            this.elements.connectBtn.textContent = this.#connectLabel;
         }
     }
 
@@ -633,8 +633,7 @@ export class ChatClient {
         this.elements.messageForm.style.display     = 'none';
         this.elements.disconnectBtn.style.display   = 'none';
         this.elements.connectBtn.disabled    = false;
-        this.elements.connectBtn.textContent = this.authMode === 'guest' ? 'Connect as Guest'
-            : this.authMode === 'register' ? 'Register & Connect' : 'Login & Connect';
+        this.elements.connectBtn.textContent = this.#connectLabel;
         this.updateChannelList();
         this.updateUserList(null);
     }
@@ -705,11 +704,10 @@ export class ChatClient {
             }
 
             if (event.type === 'm.room.message') {
-                const relType    = event.content['m.relates_to']?.rel_type;
-                const relEventId = event.content['m.relates_to']?.event_id;
-                if (relType === 'm.replace') {
-                    const newBody = event.content['m.new_content']?.body || event.content.body;
-                    const msgEl   = room.messagesEl?.querySelector(`[data-event-id="${relEventId}"]`);
+                if (this.client.isEditEvent(event)) {
+                    const rel = this.client.getEventRelation(event);
+                    const newBody = this.client.getEditedBody(event);
+                    const msgEl   = room.messagesEl?.querySelector(`[data-event-id="${rel.event_id}"]`);
                     if (msgEl) {
                         const contentEl = msgEl.querySelector('.message-content');
                         if (contentEl) contentEl.textContent = newBody;
@@ -719,48 +717,39 @@ export class ChatClient {
                 } else {
                     lastEventId = event.event_id;
                     this.renderEvent(room, event);
-                    // Detect mention of the current user
-                    const myId = this.client?.userId;
-                    if (myId && event.sender !== myId) {
-                        const body    = event.content.body || '';
-                        const fmtBody = event.content.formatted_body || '';
-                        if (body.includes(myId) || fmtBody.includes(myId)) {
-                            this.client.emit('mention', { roomId: room.roomId, event, room });
-                        }
+                    if (this.client.isMention(event, this.client.userId)) {
+                        this.client.emit('mention', { roomId: room.roomId, event, room });
                     }
                     if (!isActive) { room.unreadCount++; this.updateChannelList(); }
                 }
             }
 
-            if (event.type === 'm.reaction') {
-                const rel = event.content?.['m.relates_to'];
-                if (rel?.rel_type === 'm.annotation' && rel.event_id && rel.key)
+            if (this.client.isReactionEvent(event)) {
+                const rel = this.client.getEventRelation(event);
+                if (rel?.event_id && rel.key)
                     this.#addReaction(room, rel.event_id, rel.key, event.sender);
             }
 
             if (event.type === 'm.room.member') {
-                const uid  = event.state_key;
-                const mem  = event.content?.membership;
-                const prev = event.unsigned?.prev_content?.membership;
-                const name = event.content?.displayname || this.getDisplayName(uid, room);
+                const change = this.client.getMembershipChange(event);
+                if (!change) continue;
+                const name = change.displayName || this.getDisplayName(change.userId, room);
 
-                if (mem === 'join' && prev !== 'join') {
-                    room.setMember(uid, event.content.displayname, null);
+                if (change.type === 'join') {
+                    room.setMember(change.userId, change.displayName, null);
                     if (isActive) this.addSystemMessage(`${name} joined`);
-                } else if (mem === 'join' && prev === 'join') {
-                    const oldName = event.unsigned?.prev_content?.displayname;
-                    if (oldName && oldName !== name) {
-                        room.setMember(uid, event.content.displayname, null);
-                        if (isActive) this.addSystemMessage(`${oldName} → ${name}`);
-                    }
-                } else if (mem === 'leave' && prev === 'join') {
-                    room.members.delete(uid);
-                    if (isActive) this.addSystemMessage(event.sender === uid
-                        ? `${name} left`
-                        : `${name} was kicked by ${this.getDisplayName(event.sender, room)}`);
-                } else if (mem === 'ban') {
-                    room.members.delete(uid);
-                    if (isActive) this.addSystemMessage(`${name} was banned by ${this.getDisplayName(event.sender, room)}`);
+                } else if (change.type === 'rename') {
+                    room.setMember(change.userId, change.displayName, null);
+                    if (isActive) this.addSystemMessage(`${change.prevDisplayName} → ${name}`);
+                } else if (change.type === 'leave') {
+                    room.members.delete(change.userId);
+                    if (isActive) this.addSystemMessage(`${name} left`);
+                } else if (change.type === 'kick') {
+                    room.members.delete(change.userId);
+                    if (isActive) this.addSystemMessage(`${name} was kicked by ${this.getDisplayName(change.kicker, room)}`);
+                } else if (change.type === 'ban') {
+                    room.members.delete(change.userId);
+                    if (isActive) this.addSystemMessage(`${name} was banned by ${this.getDisplayName(change.kicker, room)}`);
                 }
                 if (isActive) this.updateUserList(room);
             }
@@ -799,8 +788,8 @@ export class ChatClient {
             } else if (message.startsWith('/')) {
                 await this.commands.handle(message);
             } else {
-                const room          = this.rooms.get(this.activeRoomId);
-                const formattedBody = this.#buildMentionBody(message, room);
+                const room = this.rooms.get(this.activeRoomId);
+                const formattedBody = this.client.buildMentionHtml(message, (uid) => this.getDisplayName(uid, room));
                 const result = await this.client.sendMessage(this.activeRoomId, message, formattedBody);
                 if (!result?.eventId) throw new Error('Failed to send message');
             }
@@ -822,7 +811,6 @@ export class ChatClient {
      * @param {string} roomId
      */
     #showMentionNotification(sender, body, roomId) {
-        // Play sound
         const audio = document.getElementById('mentionSound');
         if (audio) {
             audio.currentTime = 0;
@@ -836,77 +824,14 @@ export class ChatClient {
     }
 
     /**
-     * Given a plain-text message, replaces @userId:server patterns with Matrix mention
-     * HTML anchor tags using the member's display name. Returns null when there are no
-     * mentions so the plain send path is used.
-     * @param {string} text
-     * @param {import('./room-state.js').RoomState|undefined} room
-     * @returns {string|null}
-     */
-    #buildMentionBody(text, room) {
-        const mentionRe = /@(\S+:\S+)/g;
-        if (!mentionRe.test(text)) return null;
-
-        return text.replace(/@(\S+:\S+)/g, (match, id) => {
-            const userId      = `@${id}`;
-            const memberInfo  = room?.members?.get(userId);
-            const displayName = memberInfo?.displayName || userId.match(/^@([^:]+):/)?.[1] || userId;
-            const escaped     = displayName.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-            return `<a href="https://matrix.to/#/${encodeURIComponent(userId)}">@${escaped}</a>`;
-        });
-    }
-
-    /**
-     * Parses an HTML string and returns a sanitized DocumentFragment.
-     * Only a safe whitelist of tags and attributes is preserved; everything
-     * else is stripped to its text content. `<a>` hrefs are restricted to
-     * https://matrix.to/ URLs to prevent open-redirect or javascript: attacks.
+     * Converts an HTML string to a DocumentFragment for safe DOM insertion.
      * @param {string} html
      * @returns {DocumentFragment}
      */
-    #sanitizeHtml(html) {
-        const ALLOWED = new Set(['a', 'b', 'strong', 'i', 'em', 'code', 'del', 's', 'strike', 'u', 'span', 'br']);
-        const doc  = new DOMParser().parseFromString(html, 'text/html');
-        const frag = document.createDocumentFragment();
-
-        /** @param {Node} src @param {Node} dest */
-        const walk = (src, dest) => {
-            for (const node of [...src.childNodes]) {
-                if (node.nodeType === Node.TEXT_NODE) {
-                    dest.appendChild(document.createTextNode(node.textContent));
-                } else if (node.nodeType === Node.ELEMENT_NODE) {
-                    const tag  = node.tagName.toLowerCase();
-                    const href = tag === 'a' ? (node.getAttribute('href') ?? '') : '';
-
-                    // Convert matrix.to mention anchors into styled display spans
-                    if (tag === 'a' && href.startsWith('https://matrix.to/#/@')) {
-                        const userId  = decodeURIComponent(href.slice('https://matrix.to/#/'.length));
-                        const el      = document.createElement('span');
-                        el.className  = 'mention';
-                        el.title      = userId;
-                        el.textContent = node.textContent || userId;
-                        dest.appendChild(el);
-                        continue;
-                    }
-
-                    if (ALLOWED.has(tag)) {
-                        const el = document.createElement(tag === 'strike' ? 's' : tag);
-                        if (tag === 'span' && node.getAttribute('class') === 'mention') {
-                            el.className = 'mention';
-                            const title = node.getAttribute('title');
-                            if (title) el.title = title;
-                        }
-                        walk(node, el);
-                        dest.appendChild(el);
-                    } else {
-                        walk(node, dest);
-                    }
-                }
-            }
-        };
-
-        walk(doc.body, frag);
-        return frag;
+    #htmlToFragment(html) {
+        const template = document.createElement('template');
+        template.innerHTML = html;
+        return template.content;
     }
 }
 

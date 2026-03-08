@@ -1,13 +1,20 @@
+
 # mxjs-lite
 
-Lightweight Matrix protocol client library.
+Lightweight Matrix protocol client library (modern ES module, class-based, event-driven).
 
 ## Features
 
-- 🚀 Lightweight - No dependencies, pure JavaScript
-- 📡 Core Matrix API - Register, join rooms, send/receive messages
-- 👥 User presence - Fetch user status and last active time
-- 📖 Public read - Fetch public room messages without authentication
+- 🚀 Lightweight, pure JavaScript, no dependencies
+- 📡 Full Matrix API: register, login, join/create rooms, send/edit/delete messages, reactions, state events
+- 👥 User presence, profile, avatar, power levels
+- 🏷️ Room state management: name, topic, avatar, alias, members
+- 🔔 Event system: `on`, `off`, `emit` for extensibility and custom hooks
+- 🧠 State management: fetch all room state, restore users/rooms
+- 📝 Mention detection, notification, sound alerts, visual highlights
+- 🔍 Public read: fetch public room messages and presence without authentication
+- 🖼️ Media upload: send images/files, avatar, room icon
+- 🧩 Modular example: autocomplete, context menus, IRC-style formatting, Dracula theme
 
 ## Installation
 
@@ -15,10 +22,10 @@ Lightweight Matrix protocol client library.
 npm install mxjs-lite
 ```
 
-Or use as ES6 module:
+Or use as ES module:
 
 ```javascript
-import mxjs from './mxjs-lite.js';
+import MxjsClient from './mxjs-lite.js';
 ```
 
 ## Quick Start
@@ -26,35 +33,37 @@ import mxjs from './mxjs-lite.js';
 ### Basic Usage
 
 ```javascript
-import mxjs from 'mxjs-lite';
+import MxjsClient from 'mxjs-lite';
 
-// Initialize with your Matrix homeserver
-mxjs.init({
-    homeserver: 'https://matrix.org'
-});
+const mx = new MxjsClient({ homeserver: 'https://matrix.org' });
 
 // Register as guest
-const { accessToken, userId } = await mxjs.registerGuest();
+const { accessToken, userId } = await mx.registerGuest();
 
 // Set display name
-await mxjs.setDisplayName(userId, 'MyNickname', accessToken);
+await mx.setDisplayName('MyNickname');
 
 // Resolve room alias
-const roomId = await mxjs.resolveRoomAlias('#room:matrix.org', accessToken);
+const roomId = await mx.resolveRoomAlias('#room:matrix.org');
 
 // Join room
-await mxjs.joinRoom(roomId, accessToken);
+await mx.joinRoom(roomId);
 
 // Send message
-await mxjs.sendMessage(roomId, 'Hello, world!', accessToken);
+await mx.sendMessage(roomId, 'Hello, world!');
 
 // Sync messages
-const syncData = await mxjs.sync(accessToken);
+const syncData = await mx.sync();
+
+// Listen for custom events
+mx.on('mention', (event) => {
+    // Handle mention notification
+});
 ```
 
 ## Live Example
 
-Check out the [example/](example/) folder for a fully functional IRC-style chat interface:
+See [example/](example/) for a full-featured IRC-style chat interface:
 
 ```bash
 cd example
@@ -62,11 +71,13 @@ cd example
 python -m http.server 8000
 ```
 
-The example demonstrates:
-- Real-time message synchronization
-- User list management
-- IRC-style message formatting
-- Connection handling
+Features demonstrated:
+- Real-time message sync
+- User list, power levels
+- Autocomplete for slash commands and mentions
+- Context menus, message editing, reactions
+- Mention highlight, sound notification, browser notifications
+- Dracula theme, modular ES module structure
 
 See [example/README.md](example/README.md) for details.
 
@@ -75,97 +86,79 @@ See [example/README.md](example/README.md) for details.
 Fetch public data without registration:
 
 ```javascript
-import mxjs from 'mxjs-lite';
-
-mxjs.init({
+const mx = new MxjsClient({
     homeserver: 'https://matrix.org',
     publicReadToken: 'your_public_read_token'
 });
 
 // Get latest public message
-const message = await mxjs.fetchPublicLastMessage('#room:matrix.org');
+const message = await mx.fetchPublicLastMessage('#room:matrix.org');
 console.log(`${message.sender}: ${message.body}`);
 
 // Get user presence
-const presence = await mxjs.fetchPublicPresence('@user:matrix.org');
+const presence = await mx.fetchPublicPresence('@user:matrix.org');
 console.log(`User is ${presence.presence}`);
 ```
 
 ## API Reference
 
-### `init(config)`
+### Class: `MxjsClient`
 
-Initialize the library with configuration.
+#### Constructor
 
-**Parameters:**
-- `config.homeserver` (string) - Matrix homeserver URL
-- `config.publicReadToken` (string, optional) - Public read token
+`new MxjsClient({ homeserver, publicReadToken })`
 
-### `api(endpoint, method, body, accessToken)`
+#### Core Methods
 
-Make authenticated Matrix API call.
+- `register(username, password)`
+- `registerGuest()`
+- `login(username, password)`
+- `logout()`
+- `deactivateAccount(password)`
+- `changePassword(oldPassword, newPassword)`
+- `getProfile(userId?)`
+- `setDisplayName(displayName)`
+- `setAvatarUrl(avatarUrl)`
+- `mxcToHttp(mxcUrl)`
+- `resolveRoomAlias(roomAlias)`
+- `joinRoom(roomIdOrAlias)`
+- `createRoom(options)`
+- `leaveRoom(roomId)`
+- `inviteUser(roomId, userId)`
+- `kickUser(roomId, userId, reason?)`
+- `banUser(roomId, userId, reason?)`
+- `unbanUser(roomId, userId)`
+- `getRoomMembers(roomId)`
+- `sendMessage(roomId, message, formattedBody?)`
+- `sendImage(roomId, url, body?, info?)`
+- `editMessage(roomId, eventId, newMessage)`
+- `redactEvent(roomId, eventId, reason?)`
+- `reactToMessage(roomId, eventId, reaction)`
+- `sendStateEvent(roomId, type, content, stateKey?)`
+- `setRoomName(roomId, name)`
+- `setRoomTopic(roomId, topic)`
+- `setRoomAvatar(roomId, url)`
+- `getRoomState(roomId, type, stateKey?)`
+- `getRoomName(roomId)`
+- `getRoomTopic(roomId)`
+- `getRoomAllState(roomId)`
+- `removeReaction(roomId, reactionEventId)`
+- `getMessages(roomId, { from, limit, dir })`
+- `sendTyping(roomId, typing, timeout?)`
+- `sendReadReceipt(roomId, eventId)`
+- `uploadMedia(data, contentType, filename?)`
+- `sync(since?, timeout?)`
 
-**Returns:** `Promise<object>`
+#### Event System
 
-### `registerGuest()`
+- `on(event, fn)` — Register event listener
+- `off(event, fn?)` — Remove event listener
+- `emit(event, ...args)` — Emit custom event
 
-Register as guest user.
+#### Public API (Unauthenticated)
 
-**Returns:** `Promise<{accessToken: string, userId: string}>`
-
-### `setDisplayName(userId, displayName, accessToken)`
-
-Set user display name.
-
-**Returns:** `Promise<boolean>`
-
-### `resolveRoomAlias(roomAlias, accessToken)`
-
-Resolve room alias to room ID.
-
-**Returns:** `Promise<string>`
-
-### `joinRoom(roomId, accessToken)`
-
-Join a room.
-
-**Returns:** `Promise<boolean>`
-
-### `sendMessage(roomId, message, accessToken)`
-
-Send text message to room.
-
-**Returns:** `Promise<{eventId: string}>`
-
-### `sync(accessToken, since?, timeout?)`
-
-Sync messages from server.
-
-**Returns:** `Promise<object>`
-
-### `getRoomMembers(roomId, accessToken)`
-
-Get room members list.
-
-**Returns:** `Promise<Array<{userId: string, displayName: string}>>`
-
-### `fetchPublicLastMessage(roomAlias)`
-
-Fetch latest public message (requires publicReadToken).
-
-**Returns:** `Promise<{sender: string, body: string, timestamp: number}>`
-
-### `fetchPublicPresence(userId)`
-
-Fetch user presence (requires publicReadToken).
-
-**Returns:** `Promise<{presence: string, lastActive: number}>`
-
-### `formatTimeAgo(timestampMs)`
-
-Format timestamp as relative time string.
-
-**Returns:** `string` (e.g., "5m ago", "2h ago")
+- `fetchPublicLastMessage(roomAlias)`
+- `fetchPublicPresence(userId)`
 
 ## License
 
