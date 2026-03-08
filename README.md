@@ -2,8 +2,12 @@
 
 Lightweight Matrix protocol client. Pure ES module, no dependencies.
 
+```
+npm install @litruv/mxjs-lite
+```
+
 ```js
-import MxjsClient from './mxjs-lite.js';
+import MxjsClient from '@litruv/mxjs-lite';
 
 const mx = new MxjsClient({ homeserver: 'https://matrix.org' });
 await mx.login('alice', 's3cr3t');
