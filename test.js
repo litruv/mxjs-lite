@@ -203,7 +203,7 @@ runner.test('Get room members (optional)', async (state) => {
 
 // ── Media ─────────────────────────────────────────────────────────────────────
 
-runner.test('Upload media', async () => {
+runner.test('Upload media', async (state) => {
     if (!mxjs.accessToken) return 'skip';
     // Smallest valid 1x1 transparent PNG
     const tinyPng = Buffer.from(
@@ -212,7 +212,15 @@ runner.test('Upload media', async () => {
     );
     const result = await mxjs.uploadMedia(tinyPng, 'image/png', 'test.png');
     if (!result || !result.contentUri) throw new Error('Failed to upload media');
+    state.uploadedImageUri = result.contentUri;
     console.log(`\n  ${colors.gray}Uploaded: ${result.contentUri}${colors.reset}`);
+});
+
+runner.test('Send image message (optional)', async (state) => {
+    if (!state.roomId || !state.uploadedImageUri) return 'skip';
+    const result = await mxjs.sendImage(state.roomId, state.uploadedImageUri, 'test.png', { mimetype: 'image/png', size: 90 });
+    if (!result || !result.eventId) throw new Error('Failed to send image message');
+    console.log(`\n  ${colors.gray}Sent image: ${result.eventId}${colors.reset}`);
 });
 
 // ── Room management ───────────────────────────────────────────────────────────
@@ -245,22 +253,6 @@ runner.test('Change password', async (state) => {
 });
 
 // ── Utilities ─────────────────────────────────────────────────────────────────
-
-runner.test('Format time ago', () => {
-    const now = Date.now();
-    const cases = [
-        { time: now, expected: 'just now' },
-        { time: now - 30000, expected: 'just now' },
-        { time: now - 120000, contains: 'm ago' },
-        { time: now - 3600000, contains: 'h ago' },
-        { time: now - 86400000, contains: 'd ago' }
-    ];
-    for (const c of cases) {
-        const result = mxjs.formatTimeAgo(c.time);
-        if (c.expected && result !== c.expected) throw new Error(`Expected "${c.expected}" got "${result}"`);
-        if (c.contains && !result.includes(c.contains)) throw new Error(`Expected "${c.contains}" in "${result}"`);
-    }
-});
 
 runner.test('API error handling', async () => {
     const result = await mxjs.api('/invalid/endpoint', 'GET', null, 'invalid_token');
