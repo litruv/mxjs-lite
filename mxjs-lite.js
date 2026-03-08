@@ -193,6 +193,16 @@ export class MxjsClient {
     }
 
     /**
+     * Convert an mxc:// URI to a downloadable HTTP URL via this homeserver.
+     * @param {string} mxcUrl - e.g. mxc://server/mediaId
+     * @returns {string | null} HTTP URL, or null if the URI is not a valid mxc://
+     */
+    mxcToHttp(mxcUrl) {
+        if (!mxcUrl?.startsWith('mxc://')) return null;
+        return `${this.homeserver}/_matrix/media/r0/download/${mxcUrl.slice(6)}`;
+    }
+
+    /**
      * Resolve a room alias to a room ID.
      * @param {string} roomAlias - e.g. #room:server.com
      * @returns {Promise<string | null>}
@@ -414,6 +424,116 @@ export class MxjsClient {
             return result.errcode ? null : { eventId: result.event_id };
         } catch (e) {
             console.error('react:', e);
+            return null;
+        }
+    }
+
+    /**
+     * Send a state event to a room.
+     * @param {string} roomId
+     * @param {string} type - State event type (e.g. 'm.room.name')
+     * @param {Object} content - Event content
+     * @param {string} [stateKey] - State key (default '')
+     * @returns {Promise<{eventId: string} | null>}
+     */
+    async sendStateEvent(roomId, type, content, stateKey = '') {
+        try {
+            const result = await this.api(`/rooms/${roomId}/state/${encodeURIComponent(type)}/${encodeURIComponent(stateKey)}`, 'PUT', content);
+            return result.errcode ? null : { eventId: result.event_id };
+        } catch (e) {
+            console.error('state event:', e);
+            return null;
+        }
+    }
+
+    /**
+     * Set the name of a room.
+     * @param {string} roomId
+     * @param {string} name
+     * @returns {Promise<{eventId: string} | null>}
+     */
+    async setRoomName(roomId, name) {
+        return this.sendStateEvent(roomId, 'm.room.name', { name });
+    }
+
+    /**
+     * Set the topic of a room.
+     * @param {string} roomId
+     * @param {string} topic
+     * @returns {Promise<{eventId: string} | null>}
+     */
+    async setRoomTopic(roomId, topic) {
+        return this.sendStateEvent(roomId, 'm.room.topic', { topic });
+    }
+
+    /**
+     * Set the avatar (icon) of a room.
+     * @param {string} roomId
+     * @param {string} url - mxc:// URI
+     * @returns {Promise<{eventId: string} | null>}
+     */
+    async setRoomAvatar(roomId, url) {
+        return this.sendStateEvent(roomId, 'm.room.avatar', { url });
+    }
+
+    /**
+     * Get a specific state event from a room.
+     * @param {string} roomId
+     * @param {string} type - State event type (e.g. 'm.room.name')
+     * @param {string} [stateKey] - State key (default '')
+     * @returns {Promise<Object | null>} The event content, or null if not found / no permission
+     */
+    async getRoomState(roomId, type, stateKey = '') {
+        try {
+            const result = await this.api(`/rooms/${roomId}/state/${encodeURIComponent(type)}/${encodeURIComponent(stateKey)}`);
+            return result.errcode ? null : result;
+        } catch (e) {
+            console.error('get state:', e);
+            return null;
+        }
+    }
+
+    /**
+     * Get the current name of a room.
+     * @param {string} roomId
+     * @returns {Promise<string | null>}
+     */
+    async getRoomName(roomId) {
+        return (await this.getRoomState(roomId, 'm.room.name'))?.name ?? null;
+    }
+
+    /**
+     * Get the current topic of a room.
+     * @param {string} roomId
+     * @returns {Promise<string | null>}
+     */
+    async getRoomTopic(roomId) {
+        return (await this.getRoomState(roomId, 'm.room.topic'))?.topic ?? null;
+    }
+
+    /**
+     * Fetch all current state events for a room.
+     * Returns a structured summary of the room's state.
+     * @param {string} roomId
+     * @returns {Promise<{name: string|null, topic: string|null, avatarUrl: string|null, canonicalAlias: string|null, powerLevels: Object|null, members: Array<{userId: string, displayName: string, membership: string}>} | null>}
+     */
+    async getRoomAllState(roomId) {
+        try {
+            const result = await this.api(`/rooms/${roomId}/state`);
+            if (!Array.isArray(result)) return null;
+            const find = (type, key = '') => result.find(e => e.type === type && (e.state_key ?? '') === key)?.content ?? null;
+            return {
+                name:           find('m.room.name')?.name ?? null,
+                topic:          find('m.room.topic')?.topic ?? null,
+                avatarUrl:      find('m.room.avatar')?.url ?? null,
+                canonicalAlias: find('m.room.canonical_alias')?.alias ?? null,
+                powerLevels:    find('m.room.power_levels'),
+                members:        result
+                    .filter(e => e.type === 'm.room.member')
+                    .map(e => ({ userId: e.state_key, displayName: e.content?.displayname || null, membership: e.content?.membership || 'leave' })),
+            };
+        } catch (e) {
+            console.error('all state:', e);
             return null;
         }
     }
