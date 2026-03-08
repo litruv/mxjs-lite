@@ -35,7 +35,7 @@
     ".": "./mxjs-lite.js"
   },
   "publishConfig": {
-    "registry": "https://npm.pkg.github.com"
+    "access": "public"
   },
   "devDependencies": {
     "terser": "^5.46.0"
