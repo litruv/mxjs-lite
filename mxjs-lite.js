@@ -844,6 +844,7 @@ export class MxjsClient {
    * - `roomLeave` `{ roomId }` — the client has left or been removed from a room.
    * - `invite` `{ roomId }` — the client received a room invitation.
    * - `message` `{ roomId, event }` — a new (non-edit) `m.room.message` event.
+   * - `edit` `{ roomId, edits, newBody, event }` — a message was edited; `edits` is the event ID of the original message, `newBody` is the new text.
    * - `memberUpdate` `{ roomId, change, event }` — a membership change; `change` is the
    *   object returned by {@link getMembershipChange}.
    * - `redaction` `{ roomId, redacts, event }` — an event was redacted (deleted); `redacts` is the event ID that was deleted.
@@ -863,6 +864,11 @@ export class MxjsClient {
       for (const event of roomData.timeline?.events ?? []) {
         if (event.type === M_MSG && !this.isEditEvent(event)) {
           this.emit('message', { roomId, event });
+        }
+        if (event.type === M_MSG && this.isEditEvent(event)) {
+          const rel = this.getEventRelation(event);
+          const newBody = this.getEditedBody(event);
+          this.emit('edit', { roomId, edits: rel.event_id, newBody, event });
         }
         if (event.type === M_MEMBER) {
           const change = this.getMembershipChange(event);
