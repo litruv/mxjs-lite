@@ -18,6 +18,7 @@ const cerr = console.error.bind(console);
 const M_MSG = "m.room.message";
 const M_MEMBER = "m.room.member";
 const M_REACT = "m.reaction";
+const M_REDACTION = "m.room.redaction";
 const M_RNAME = "m.room.name";
 const M_RTOPIC = "m.room.topic";
 const M_RAVATAR = "m.room.avatar";
@@ -845,6 +846,7 @@ export class MxjsClient {
    * - `message` `{ roomId, event }` — a new (non-edit) `m.room.message` event.
    * - `memberUpdate` `{ roomId, change, event }` — a membership change; `change` is the
    *   object returned by {@link getMembershipChange}.
+   * - `redaction` `{ roomId, redacts, event }` — an event was redacted (deleted); `redacts` is the event ID that was deleted.
    * - `typing` `{ roomId, userIds }` — the current set of typing users in a room changed.
    *
    * @param {Object} data - The sync response as returned by {@link sync}.
@@ -865,6 +867,9 @@ export class MxjsClient {
         if (event.type === M_MEMBER) {
           const change = this.getMembershipChange(event);
           if (change) this.emit('memberUpdate', { roomId, change, event });
+        }
+        if (event.type === M_REDACTION) {
+          this.emit('redaction', { roomId, redacts: event.redacts, event });
         }
       }
 
