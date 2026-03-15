@@ -1,4 +1,4 @@
-import { cerr, enc } from './constants.js';
+import { cerr, enc, PUSH_RULE_TOMBSTONE } from './constants.js';
 
 /**
  * Mixin adding push notification methods to a base client class.
@@ -158,6 +158,27 @@ export const Push = (Base) => class extends Base {
       cerr('setPushRuleEnabled:', e);
       return false;
     }
+  }
+
+  /**
+   * Returns whether the default tombstone push rule (`.m.rule.tombstone`) is enabled.
+   * This rule highlights the user when a room they are in is upgraded (MSC1930).
+   * @returns {Promise<boolean|null>} `true` if enabled, `false` if disabled, `null` on failure.
+   */
+  async getTombstoneNotificationsEnabled() {
+    const res = await this.getPushRuleEnabled('override', PUSH_RULE_TOMBSTONE);
+    return res ? res.enabled : null;
+  }
+
+  /**
+   * Enables or disables the default tombstone push rule (`.m.rule.tombstone`).
+   * When enabled, the user receives a highlight notification whenever a room
+   * they are in is upgraded via `m.room.tombstone` (MSC1930).
+   * @param {boolean} enabled
+   * @returns {Promise<boolean>} `true` on success.
+   */
+  async setTombstoneNotificationsEnabled(enabled) {
+    return this.setPushRuleEnabled('override', PUSH_RULE_TOMBSTONE, enabled);
   }
 
   /**

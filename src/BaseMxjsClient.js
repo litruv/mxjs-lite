@@ -35,6 +35,7 @@ export class BaseMxjsClient {
    * @param {string} [method="GET"] - HTTP method.
    * @param {Object|null} [body=null] - Request body, serialized as JSON.
    * @param {string|null} [accessToken=this.accessToken] - Bearer token override.
+   * @param {string|null} [pinVersion=null] - Force a specific API version prefix (e.g. `'v1'`). When `null`, auto-tries `v3 → v1 → r0`.
    * @returns {Promise<Object>} The parsed JSON response.
    */
   async api(
@@ -42,13 +43,14 @@ export class BaseMxjsClient {
     method = "GET",
     body = null,
     accessToken = this.accessToken,
+    pinVersion = null,
   ) {
     const headers = { "Content-Type": "application/json" };
     if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
     const options = { method, headers };
     if (body) options.body = JSON.stringify(body);
     
-    for (const version of ["v3", "r0"]) {
+    for (const version of pinVersion ? [pinVersion] : ["v3", "v1", "r0"]) {
       const url = `${this.homeserver}/_matrix/client/${version}${endpoint}`;
       const response = await fetch(url, options);
       if (response.status === 404 && version !== "r0") continue;
@@ -79,7 +81,7 @@ export class BaseMxjsClient {
     const headers = { "Content-Type": "application/json" };
     if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
     
-    for (const version of ["v3", "r0"]) {
+    for (const version of ["v3", "v1", "r0"]) {
       const url = `${this.homeserver}/_matrix/client/${version}${endpoint}`;
       const initRes = await fetch(url, {
         method: "POST",

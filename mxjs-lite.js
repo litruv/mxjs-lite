@@ -16,6 +16,9 @@ import { Search } from './src/search.js';
 import { Devices } from './src/devices.js';
 import { VoIP } from './src/voip.js';
 import { Push } from './src/push.js';
+import { Spaces } from './src/spaces.js';
+import { Threads } from './src/threads.js';
+import { RoomVersions } from './src/roomversions.js';
 export { ClientEvents } from './src/ClientEvents.js';
 
 const mixins = [
@@ -36,6 +39,9 @@ const mixins = [
   Devices,
   VoIP,
   Push,
+  Spaces,
+  Threads,
+  RoomVersions,
 ];
 
 /**
@@ -45,7 +51,8 @@ const mixins = [
  * {@link Auth}, {@link Profile}, {@link Directory},
  * {@link Rooms}, {@link Events}, {@link Receipts},
  * {@link Sync}, {@link SyncLoop}, {@link Media}, {@link Html}, {@link Capabilities},
- * {@link Filter}, {@link AccountData}, {@link Search}, {@link Devices}, {@link VoIP}, {@link Push}.
+ * {@link Filter}, {@link AccountData}, {@link Search}, {@link Devices}, {@link VoIP}, {@link Push},
+ * {@link Spaces}, {@link Threads}, {@link RoomVersions}.
  *
  * All emitted event names are available as string constants on {@link ClientEvents}.
  *

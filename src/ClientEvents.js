@@ -191,4 +191,40 @@ export const ClientEvents = {
    * Payload: `{ roomId: string, alias: string|null, event: Object }`
    */
   CanonicalAliasUpdate: 'canonicalAliasUpdate',
+
+  // ── Spaces (MSC1772) ─────────────────────────────────────────────────────
+
+  /**
+   * Emitted when a child room is added or updated in a space (`m.space.child` with valid `via`).
+   * Payload: `{ roomId: string, childRoomId: string, via: string[], order: string|null, suggested: boolean, event: Object }`
+   * - `roomId` — room ID of the space that gained the child.
+   */
+  SpaceChildAdd: 'spaceChildAdd',
+
+  /**
+   * Emitted when a child is removed from a space (`m.space.child` with empty/missing `via`).
+   * Payload: `{ roomId: string, childRoomId: string, event: Object }`
+   */
+  SpaceChildRemove: 'spaceChildRemove',
+
+  // ── Threads (MSC3440) ────────────────────────────────────────────────────
+
+  /**
+   * Emitted for every new `m.room.message` that has a `rel_type` of `m.thread`.
+   * Also fires as `messageCreate` simultaneously.
+   * Payload: `{ roomId: string, threadRootId: string, event: Object }`
+   * - `threadRootId` — event ID of the thread root message.
+   */
+  ThreadReply: 'threadReply',
+
+  // ── Room versions (MSC1501) ───────────────────────────────────────────────
+
+  /**
+   * Emitted when an `m.room.tombstone` state event arrives in the timeline,
+   * indicating the room has been upgraded and replaced by a new room.
+   * Payload: `{ roomId: string, replacementRoomId: string, body: string, event: Object }`
+   * - `replacementRoomId` — the ID of the new room that replaces this one.
+   * - `body` — the human-readable notice set by the server (e.g. `"This room has been replaced"`).
+   */
+  RoomTombstone: 'roomTombstone',
 };

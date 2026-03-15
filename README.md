@@ -167,9 +167,12 @@ new MxjsClient([options])
 [roomLeave](#event-roomleave)  
 [roomNameUpdate](#event-roomnameupdate)  
 [roomTopicUpdate](#event-roomtopicupdate)  
+[spaceChildAdd](#event-spacechildadd)  
+[spaceChildRemove](#event-spacechildremove)  
 [syncComplete](#event-synccomplete)  
 [syncError](#event-syncerror)  
 [typingStart](#event-typingstart)  
+[threadReply](#event-threadreply)  
 [typingEnd](#event-typingend)
 
 ### Event Helpers
@@ -200,6 +203,30 @@ new MxjsClient([options])
 |---|
 | [`.fetchPublicLastMessage()`](#fetchpubliclastmessageroomalias) |
 | [`.fetchPublicPresence()`](#fetchpublicpresenceuserid) |
+
+### Spaces (MSC1772)
+
+| Method |
+|---|
+| [`.createSpace()`](#createspacename-options) |
+| [`.addSpaceChild()`](#addspacechildspaceid-childroomid-via-options) |
+| [`.removeSpaceChild()`](#removespacechildspaceid-childroomid) |
+| [`.setSpaceParent()`](#setspaceparentroomid-spaceid-via-canonical) |
+| [`.removeSpaceParent()`](#removespaceparentroomid-spaceid) |
+| [`.getSpaceChildren()`](#getspacechildrenspaceid) |
+| [`.isSpaceRoom()`](#isspaceroomcreatecontent) |
+
+### Threads (MSC3440)
+
+| Method |
+|---|
+| [`.sendThreadReply()`](#sendthreadreplyrooomid-threadrootid-message-formattedbody) |
+| [`.sendThreadReplyTo()`](#sendthreadreplytorooomid-threadrootid-replytoeventid-message-formattedbody) |
+| [`.getThreadEvents()`](#getthreadeventssroomid-threadrootid-options) |
+| [`.getRoomThreads()`](#getroomthreadsroomid-options) |
+| [`.isThreadEvent()`](#isthreadeventevent) |
+| [`.getThreadRoot()`](#getthreadrootevent) |
+| [`.isThreadFallback()`](#isthreadfallbackevent) |
 
 ### Low-level
 
@@ -799,7 +826,7 @@ while (true) {
 
 ### .processSyncData(data)
 
-Processes a raw sync response and emits structured events for all new activity. Called automatically by [`startSync()`](#startsynctimeout-since), or call manually after each `.sync()` poll. Emits `roomJoin`, `roomLeave`, `inviteReceive`, `messageCreate`, `messageUpdate`, `messageDelete`, `reactionAdd`, `reactionRemove`, `memberUpdate`, `typingStart`, `typingEnd`, `receiptUpdate`, `roomNameUpdate`, `roomTopicUpdate`, `roomAvatarUpdate`, `powerLevelUpdate`, `canonicalAliasUpdate`, `presenceUpdate`, `accountDataUpdate`, `roomAccountDataUpdate` — see [Event Details](#event-details) for payload shapes.
+Processes a raw sync response and emits structured events for all new activity. Called automatically by [`startSync()`](#startsynctimeout-since), or call manually after each `.sync()` poll. Emits `roomJoin`, `roomLeave`, `inviteReceive`, `messageCreate`, `messageUpdate`, `messageDelete`, `reactionAdd`, `reactionRemove`, `memberUpdate`, `typingStart`, `typingEnd`, `receiptUpdate`, `roomNameUpdate`, `roomTopicUpdate`, `roomAvatarUpdate`, `powerLevelUpdate`, `canonicalAliasUpdate`, `presenceUpdate`, `accountDataUpdate`, `roomAccountDataUpdate`, `spaceChildAdd`, `spaceChildRemove`, `threadReply` — see [Event Details](#event-details) for payload shapes.
 
 | Parameter | Type | Description |
 |---|---|---|
@@ -932,6 +959,9 @@ mx.on(ClientEvents.Ready, () => { /* ... */ });
 | `ClientEvents.SyncError` | `'syncError'` |
 | `ClientEvents.PowerLevelUpdate` | `'powerLevelUpdate'` |
 | `ClientEvents.CanonicalAliasUpdate` | `'canonicalAliasUpdate'` |
+| `ClientEvents.SpaceChildAdd` | `'spaceChildAdd'` |
+| `ClientEvents.SpaceChildRemove` | `'spaceChildRemove'` |
+| `ClientEvents.ThreadReply` | `'threadReply'` |
 
 ---
 
@@ -1127,6 +1157,226 @@ Fetches the presence status for a user without authentication. Requires [`public
 | `userId` | `string` | e.g. `@alice:matrix.org` |
 
 **Returns:** `Promise<{ presence: string, lastActive: number } | null>`
+
+---
+
+### .createSpace(name[, options])
+
+Creates a new space room. Sets `creation_content.type` to `m.space` and defaults `events_default` power level to `100` (preventing spam from non-admin members).
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `name` | `string` | | Display name for the space |
+| `options` | `Object` | `{}` | Additional room creation options (e.g. `topic`, `visibility`, `preset`) |
+
+**Returns:** `Promise<{ roomId: string } | null>`
+
+```js
+const { roomId } = await mx.createSpace('My Community', { visibility: 'public' });
+```
+
+---
+
+### .addSpaceChild(spaceId, childRoomId, via[, options])
+
+Adds a child room or subspace to a space by sending an `m.space.child` state event.
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `spaceId` | `string` | | Room ID of the space |
+| `childRoomId` | `string` | | Room ID of the child to add |
+| `via` | `string[]` | | Candidate servers for joining the child room |
+| `options.order` | `string` | | Lexicographic sort key for siblings |
+| `options.suggested` | `boolean` | | Whether to mark the child as suggested |
+
+**Returns:** `Promise<{ eventId: string } | null>`
+
+---
+
+### .removeSpaceChild(spaceId, childRoomId)
+
+Removes a child from a space by sending an empty `m.space.child` state event.
+
+| Parameter | Type | Description |
+|---|---|---|
+| `spaceId` | `string` | Room ID of the space |
+| `childRoomId` | `string` | Room ID of the child to remove |
+
+**Returns:** `Promise<{ eventId: string } | null>`
+
+---
+
+### .setSpaceParent(roomId, spaceId, via[, canonical])
+
+Declares a room's parent space via an `m.space.parent` state event.
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `roomId` | `string` | | Room that will gain the parent link |
+| `spaceId` | `string` | | Room ID of the parent space |
+| `via` | `string[]` | | Candidate servers for joining the parent |
+| `canonical` | `boolean` | `false` | Whether this is the primary parent for the room |
+
+**Returns:** `Promise<{ eventId: string } | null>`
+
+---
+
+### .removeSpaceParent(roomId, spaceId)
+
+Removes a parent declaration by sending an empty `m.space.parent` state event.
+
+| Parameter | Type | Description |
+|---|---|---|
+| `roomId` | `string` | The child room |
+| `spaceId` | `string` | Room ID of the parent to remove |
+
+**Returns:** `Promise<{ eventId: string } | null>`
+
+---
+
+### .getSpaceChildren(spaceId)
+
+Returns all current children of a space. Fetches full room state and filters for valid `m.space.child` events (those with a non-empty `via` array).
+
+| Parameter | Type | Description |
+|---|---|---|
+| `spaceId` | `string` | Room ID of the space |
+
+**Returns:**
+```
+Promise<Array<{
+  roomId:    string,
+  via:       string[],
+  order:     string | null,
+  suggested: boolean
+}> | null>
+```
+
+```js
+const children = await mx.getSpaceChildren(spaceRoomId);
+for (const { roomId, suggested } of children) {
+    console.log(roomId, suggested ? '(suggested)' : '');
+}
+```
+
+---
+
+### .isSpaceRoom(createContent)
+
+Returns `true` if the given `m.room.create` event content represents a space room.
+
+| Parameter | Type | Description |
+|---|---|---|
+| `createContent` | `Object` | Content of the room's `m.room.create` event |
+
+**Returns:** `boolean`
+
+---
+
+### .sendThreadReply(roomId, threadRootId, message[, formattedBody])
+
+Sends a reply into a thread. Includes a fallback `m.in_reply_to` pointing to the thread root for clients that do not support threads (per MSC3440 backwards-compatibility).
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `roomId` | `string` | | Room ID |
+| `threadRootId` | `string` | | Event ID of the thread root message |
+| `message` | `string` | | Plain text body |
+| `formattedBody` | `string\|null` | `null` | Optional HTML-formatted body |
+
+**Returns:** `Promise<{ eventId: string } | null>`
+
+```js
+await mx.sendThreadReply(roomId, rootEventId, 'My reply');
+```
+
+---
+
+### .sendThreadReplyTo(roomId, threadRootId, replyToEventId, message[, formattedBody])
+
+Sends a rich reply within a thread, targeting a specific event. Sets `is_falling_back: false` so thread-aware clients render it as a genuine reply rather than a plain thread message.
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `roomId` | `string` | | Room ID |
+| `threadRootId` | `string` | | Event ID of the thread root |
+| `replyToEventId` | `string` | | Event ID being directly replied to |
+| `message` | `string` | | Plain text body |
+| `formattedBody` | `string\|null` | `null` | Optional HTML-formatted body |
+
+**Returns:** `Promise<{ eventId: string } | null>`
+
+---
+
+### .getThreadEvents(roomId, threadRootId[, options])
+
+Fetches events belonging to a thread via the Matrix `/relations` API.
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `roomId` | `string` | | Room ID |
+| `threadRootId` | `string` | | Event ID of the thread root |
+| `options.from` | `string` | | Pagination token |
+| `options.limit` | `number` | `50` | Maximum events to return |
+| `options.dir` | `string` | `"b"` | Direction: `"b"` or `"f"` |
+
+**Returns:** `Promise<{ events: Object[], nextBatch: string | null } | null>`
+
+```js
+const thread = await mx.getThreadEvents(roomId, rootEventId, { limit: 30 });
+for (const event of thread.events) { /* ... */ }
+```
+
+---
+
+### .isThreadEvent(event)
+
+Returns `true` if the event is a thread reply (`rel_type` of `m.thread`).
+
+| Parameter | Type | Description |
+|---|---|---|
+| `event` | `Object` | A Matrix room event |
+
+**Returns:** `boolean`
+
+---
+
+### .getThreadRoot(event)
+
+Returns the event ID of the thread root this event belongs to, or `null`.
+
+| Parameter | Type | Description |
+|---|---|---|
+| `event` | `Object` | A Matrix room event |
+
+**Returns:** `string | null`
+
+---
+
+### .getRoomThreads(roomId[, options])
+
+Fetches all thread root events in a room via `GET /_matrix/client/v1/rooms/{roomId}/threads` (MSC3856 / Matrix v1.4). Returns paginated thread roots.
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `roomId` | `string` | | The room to list threads from |
+| `options.include` | `'all'\|'participated'` | `'all'` | `'all'` returns every thread; `'participated'` returns only threads the authenticated user contributed to |
+| `options.from` | `string` | | Pagination token from a previous `nextBatch` |
+| `options.limit` | `number` | | Maximum number of thread roots to return |
+
+**Returns:** `Promise<{threads: Object[], nextBatch: string|null}|null>`
+
+---
+
+### .isThreadFallback(event)
+
+Returns `true` if the `m.in_reply_to` on a thread event is a backwards-compatibility fallback (`is_falling_back: true`) rather than a genuine reply.
+
+| Parameter | Type | Description |
+|---|---|---|
+| `event` | `Object` | A Matrix room event |
+
+**Returns:** `boolean`
 
 ---
 
@@ -1602,6 +1852,64 @@ mx.on(ClientEvents.RoomAccountDataUpdate, ({ roomId, type, content }) => {
     console.log(`Room ${roomId} account data updated: ${type}`);
 });
 ```
+
+---
+
+### Event: spaceChildAdd
+
+Emitted by `processSyncData` when a child room is added or updated in a space (`m.space.child` state event with a valid `via` array arrives in the timeline).
+
+| Property | Type | Description |
+|---|---|---|
+| `roomId` | `string` | Room ID of the space |
+| `childRoomId` | `string` | Room ID of the added/updated child |
+| `via` | `string[]` | Candidate servers for joining the child |
+| `order` | `string\|null` | Sort order hint, or `null` if unset |
+| `suggested` | `boolean` | Whether the child is marked as suggested |
+| `event` | `Object` | The raw Matrix state event |
+
+```js
+mx.on(ClientEvents.SpaceChildAdd, ({ roomId, childRoomId, suggested }) => {
+    console.log(`Space ${roomId} gained child ${childRoomId}${suggested ? ' (suggested)' : ''}`);
+});
+```
+
+---
+
+### Event: spaceChildRemove
+
+Emitted by `processSyncData` when a child room is removed from a space (`m.space.child` with empty or missing `via`).
+
+| Property | Type | Description |
+|---|---|---|
+| `roomId` | `string` | Room ID of the space |
+| `childRoomId` | `string` | Room ID of the removed child |
+| `event` | `Object` | The raw Matrix state event |
+
+```js
+mx.on(ClientEvents.SpaceChildRemove, ({ roomId, childRoomId }) => {
+    console.log(`Space ${roomId} removed child ${childRoomId}`);
+});
+```
+
+---
+
+### Event: threadReply
+
+Emitted by `processSyncData` for every `m.room.message` that carries a `rel_type` of `m.thread`. Also fires as `messageCreate` simultaneously — listen to `threadReply` when you want thread-specific handling.
+
+| Property | Type | Description |
+|---|---|---|
+| `roomId` | `string` | ID of the room |
+| `threadRootId` | `string` | Event ID of the thread root message |
+| `event` | `Object` | The raw Matrix message event |
+
+```js
+mx.on(ClientEvents.ThreadReply, ({ roomId, threadRootId, event }) => {
+    console.log(`[${roomId}] thread reply to ${threadRootId}: ${event.content?.body}`);
+});
+```
+
 ## Testing
 
 Check Matrix Client-Server API coverage:

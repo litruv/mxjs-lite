@@ -8,6 +8,9 @@ import {
   M_RAVATAR,
   M_REDACTION,
   M_REL,
+  M_SPACE_CHILD,
+  M_THREAD,
+  M_TOMBSTONE,
 } from './constants.js';
 
 const M_PLEVEL = 'm.room.power_levels';
@@ -63,6 +66,10 @@ export const Sync = (Base) => class extends Base {
    * - `roomAccountDataUpdate` `{ roomId, type, content }` — room account data changed.
    * - `presenceUpdate` `{ userId, presence, lastActiveAgo, statusMsg, currentlyActive }` — user presence changed.
    * - `accountDataUpdate` `{ type, content }` — global account data changed.
+   * - `spaceChildAdd` `{ roomId, childRoomId, via, order, suggested, event }` — child added/updated in a space.
+   * - `spaceChildRemove` `{ roomId, childRoomId, event }` — child removed from a space.
+   * - `threadReply` `{ roomId, threadRootId, event }` — a thread reply arrived (also fires as `messageCreate`).
+   * - `roomTombstone` `{ roomId, replacementRoomId, body, event }` — the room has been replaced by a newer room.
    *
    * @param {Object} data - The sync response as returned by {@link sync}.
    */
@@ -78,6 +85,10 @@ export const Sync = (Base) => class extends Base {
       for (const event of roomData.timeline?.events ?? []) {
         if (event.type === M_MSG && !this.isEditEvent(event)) {
           this.emit('messageCreate', { roomId, event });
+          const rel = event.content?.[M_REL];
+          if (rel?.rel_type === M_THREAD) {
+            this.emit('threadReply', { roomId, threadRootId: rel.event_id, event });
+          }
         }
         if (event.type === M_MSG && this.isEditEvent(event)) {
           const rel = this.getEventRelation(event);
@@ -137,6 +148,29 @@ export const Sync = (Base) => class extends Base {
         }
         if (event.type === M_ALIAS) {
           this.emit('canonicalAliasUpdate', { roomId, alias: event.content?.alias ?? null, event });
+        }
+        if (event.type === M_TOMBSTONE) {
+          this.emit('roomTombstone', {
+            roomId,
+            replacementRoomId: event.content?.replacement_room ?? null,
+            body: event.content?.body ?? null,
+            event,
+          });
+        }
+        if (event.type === M_SPACE_CHILD) {
+          const via = event.content?.via;
+          if (Array.isArray(via) && via.length > 0) {
+            this.emit('spaceChildAdd', {
+              roomId,
+              childRoomId: event.state_key,
+              via,
+              order: event.content?.order ?? null,
+              suggested: event.content?.suggested === true,
+              event,
+            });
+          } else {
+            this.emit('spaceChildRemove', { roomId, childRoomId: event.state_key, event });
+          }
         }
       }
 
