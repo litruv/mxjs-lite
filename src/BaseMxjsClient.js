@@ -31,7 +31,7 @@ export class BaseMxjsClient {
 
   /**
    * Makes a raw Matrix Client-Server API request.
-   * @param {string} endpoint - The endpoint path relative to `/_matrix/client/r0`.
+   * @param {string} endpoint - The endpoint path relative to `/_matrix/client`.
    * @param {string} [method="GET"] - HTTP method.
    * @param {Object|null} [body=null] - Request body, serialized as JSON.
    * @param {string|null} [accessToken=this.accessToken] - Bearer token override.
@@ -43,18 +43,23 @@ export class BaseMxjsClient {
     body = null,
     accessToken = this.accessToken,
   ) {
-    const url = `${this.homeserver}/_matrix/client/r0${endpoint}`;
     const headers = { "Content-Type": "application/json" };
     if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
     const options = { method, headers };
     if (body) options.body = JSON.stringify(body);
-    const response = await fetch(url, options);
-    const data = await response.json();
-    if (data.errcode === "M_LIMIT_EXCEEDED") {
-      await new Promise((r) => setTimeout(r, data.retry_after_ms ?? 1000));
-      return (await fetch(url, options)).json();
+    
+    for (const version of ["v3", "r0"]) {
+      const url = `${this.homeserver}/_matrix/client/${version}${endpoint}`;
+      const response = await fetch(url, options);
+      if (response.status === 404 && version !== "r0") continue;
+      const data = await response.json();
+      if (data.errcode === "M_LIMIT_EXCEEDED") {
+        await new Promise((r) => setTimeout(r, data.retry_after_ms ?? 1000));
+        return (await fetch(url, options)).json();
+      }
+      return data;
     }
-    return data;
+    return { errcode: "M_NOT_FOUND" };
   }
 
   /**
@@ -73,24 +78,29 @@ export class BaseMxjsClient {
   ) {
     const headers = { "Content-Type": "application/json" };
     if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
-    const url = `${this.homeserver}/_matrix/client/r0${endpoint}`;
-    const initRes = await fetch(url, {
-      method: "POST",
-      headers,
-      body: JSON.stringify(firstBody),
-    });
-    const initData = await initRes.json();
-    if (initRes.ok) return initData;
-    if (!initData.session) throw new Error(initData.error || initData.errcode);
-    const authData = await (
-      await fetch(url, {
+    
+    for (const version of ["v3", "r0"]) {
+      const url = `${this.homeserver}/_matrix/client/${version}${endpoint}`;
+      const initRes = await fetch(url, {
         method: "POST",
         headers,
-        body: JSON.stringify(buildAuthBody(initData.session)),
-      })
-    ).json();
-    if (authData.errcode) throw new Error(authData.error || authData.errcode);
-    return authData;
+        body: JSON.stringify(firstBody),
+      });
+      if (initRes.status === 404 && version !== "r0") continue;
+      const initData = await initRes.json();
+      if (initRes.ok) return initData;
+      if (!initData.session) throw new Error(initData.error || initData.errcode);
+      const authData = await (
+        await fetch(url, {
+          method: "POST",
+          headers,
+          body: JSON.stringify(buildAuthBody(initData.session)),
+        })
+      ).json();
+      if (authData.errcode) throw new Error(authData.error || authData.errcode);
+      return authData;
+    }
+    throw new Error("UIAA request failed");
   }
 
   /**

@@ -14,7 +14,21 @@ export const Media = (Base) => class extends Base {
    */
   mxcToHttp(mxcUrl) {
     if (!mxcUrl?.startsWith("mxc://")) return null;
-    return `${this.homeserver}/_matrix/media/r0/download/${mxcUrl.slice(6)}`;
+    return `${this.homeserver}/_matrix/media/v3/download/${mxcUrl.slice(6)}`;
+  }
+
+  /**
+   * Converts an `mxc://` URI to an HTTP thumbnail URL for the current homeserver.
+   * @param {string} mxcUrl - An `mxc://` URI.
+   * @param {number} [width=320] - Desired thumbnail width.
+   * @param {number} [height=240] - Desired thumbnail height.
+   * @param {string} [method="scale"] - Resize method: "crop" or "scale".
+   * @returns {string|null} The HTTP thumbnail URL, or `null` if the input is invalid.
+   */
+  mxcToHttpThumbnail(mxcUrl, width = 320, height = 240, method = "scale") {
+    if (!mxcUrl?.startsWith("mxc://")) return null;
+    const path = mxcUrl.slice(6);
+    return `${this.homeserver}/_matrix/media/v3/thumbnail/${path}?width=${width}&height=${height}&method=${method}`;
   }
 
   /**
@@ -83,6 +97,58 @@ export const Media = (Base) => class extends Base {
         : null;
     } catch (e) {
       cerr("public msg:", e);
+      return null;
+    }
+  }
+
+  /**
+   * Gets a preview of a URL from the homeserver.
+   * @param {string} url - The URL to preview.
+   * @param {number} [ts] - Optional preferred time to get the preview from.
+   * @returns {Promise<{title: string|null, description: string|null, image: string|null}|null>}
+   */
+  async getUrlPreview(url, ts) {
+    try {
+      const endpoint = `/preview_url?url=${enc(url)}${ts ? `&ts=${ts}` : ""}`;
+      const data = await this.api(endpoint);
+      return data.errcode
+        ? null
+        : {
+            title: data["og:title"] || null,
+            description: data["og:description"] || null,
+            image: data["og:image"] || null,
+          };
+    } catch (e) {
+      cerr("url preview:", e);
+      return null;
+    }
+  }
+
+  /**
+   * Gets the media configuration for the homeserver.
+   * @returns {Promise<{uploadSize: number}|null>} The max upload size in bytes, or `null` on failure.
+   */
+  async getMediaConfig() {
+    try {
+      for (const v of ["v3", "r0"]) {
+        const response = await fetch(
+          `${this.homeserver}/_matrix/media/${v}/config`,
+          {
+            method: "GET",
+            headers: this.accessToken
+              ? { Authorization: `Bearer ${this.accessToken}` }
+              : {},
+          },
+        );
+        if (response.status === 404 && v !== "r0") continue;
+        const data = await response.json();
+        return data.errcode
+          ? null
+          : { uploadSize: data["m.upload.size"] || 0 };
+      }
+      return null;
+    } catch (e) {
+      cerr("media config:", e);
       return null;
     }
   }
