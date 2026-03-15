@@ -186,4 +186,38 @@ export const Profile = (Base) => class extends Base {
       return false;
     }
   }
+
+  /**
+   * Reports a user to the homeserver moderators.
+   * @param {string} userId
+   * @param {string} [reason=''] - Human-readable reason for the report.
+   * @param {number} [score=0] - Severity score between -100 (most offensive) and 0 (inoffensive).
+   * @returns {Promise<boolean>} `true` on success.
+   */
+  async reportUser(userId, reason = '', score = 0) {
+    try {
+      const result = await this.api(`/users/${enc(userId)}/report`, 'POST', { reason, score });
+      return !result.errcode;
+    } catch (e) {
+      cerr('reportUser:', e);
+      return false;
+    }
+  }
+
+  /**
+   * Gets information about a specific user from the server administrator perspective.
+   * Requires server admin privileges.
+   * @param {string} userId
+   * @returns {Promise<Object|null>} User info object, or `null` on failure.
+   */
+  async adminWhois(userId) {
+    try {
+      const result = await this.api(`/admin/whois/${enc(userId)}`);
+      if (result.errcode) throw new Error(result.error || result.errcode);
+      return result;
+    } catch (e) {
+      cerr('adminWhois:', e);
+      return null;
+    }
+  }
 };

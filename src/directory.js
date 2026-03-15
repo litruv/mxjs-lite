@@ -206,4 +206,33 @@ export const Directory = (Base) => class extends Base {
       return null;
     }
   }
+
+  /**
+   * Searches the user directory for users matching a given search term.
+   * @param {string} searchTerm - The term to search for.
+   * @param {Object} [options={}] - Optional parameters.
+   * @param {number} [options.limit] - Maximum number of results to return.
+   * @param {string} [options.language] - BCP 47 language tag for the search.
+   * @returns {Promise<{results: Array<{userId: string, displayName?: string, avatarUrl?: string}>, limited: boolean}|null>}
+   */
+  async searchUserDirectory(searchTerm, options = {}) {
+    try {
+      const body = { search_term: searchTerm };
+      if (options.limit !== undefined) body.limit = options.limit;
+      if (options.language) body.language = options.language;
+      const result = await this.api('/user_directory/search', 'POST', body);
+      if (result.errcode) throw new Error(result.error || result.errcode);
+      return {
+        results: (result.results ?? []).map(u => ({
+          userId: u.user_id,
+          displayName: u.display_name,
+          avatarUrl: u.avatar_url,
+        })),
+        limited: result.limited ?? false,
+      };
+    } catch (e) {
+      cerr('searchUserDirectory:', e);
+      return null;
+    }
+  }
 };

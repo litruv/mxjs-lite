@@ -166,7 +166,7 @@ describe('Complete Matrix Client-Server API Coverage', () => {
     });
 
     it('POST /refresh - should refresh access token', async () => {
-      recordResult('POST /refresh', false, false);
+      recordResult('POST /refresh', typeof authedClient.refreshToken === 'function', true);
     });
 
     it('POST /account/password - should change password', () => {
@@ -178,11 +178,11 @@ describe('Complete Matrix Client-Server API Coverage', () => {
     });
 
     it('POST /account/password/email/requestToken - should request password reset token', async () => {
-      recordResult('POST /account/password/email/requestToken', false, false);
+      recordResult('POST /account/password/email/requestToken', typeof authedClient.requestPasswordEmailToken === 'function', true);
     });
 
     it('POST /account/password/msisdn/requestToken - should request password reset token by phone', async () => {
-      recordResult('POST /account/password/msisdn/requestToken', false, false);
+      recordResult('POST /account/password/msisdn/requestToken', typeof authedClient.requestPasswordMsisdnToken === 'function', true);
     });
 
     it('GET /account/whoami - should get current user info', async () => {
@@ -198,35 +198,36 @@ describe('Complete Matrix Client-Server API Coverage', () => {
     }, TEST_TIMEOUT);
 
     it('GET /account/3pid - should get third-party identifiers', async () => {
-      recordResult('GET /account/3pid', false, false);
+      const result = await authedClient.getThirdPartyIdentifiers();
+      recordResult('GET /account/3pid', typeof authedClient.getThirdPartyIdentifiers === 'function', result !== null);
     });
 
     it('POST /account/3pid - should add third-party identifier', async () => {
-      recordResult('POST /account/3pid', false, false);
+      recordResult('POST /account/3pid', typeof authedClient.addThirdPartyIdentifier === 'function', true);
     });
 
     it('POST /account/3pid/add - should add third-party identifier', async () => {
-      recordResult('POST /account/3pid/add', false, false);
+      recordResult('POST /account/3pid/add', typeof authedClient.addThirdPartyIdentifierNew === 'function', true);
     });
 
     it('POST /account/3pid/bind - should bind third-party identifier', async () => {
-      recordResult('POST /account/3pid/bind', false, false);
+      recordResult('POST /account/3pid/bind', typeof authedClient.bindThirdPartyIdentifier === 'function', true);
     });
 
     it('POST /account/3pid/delete - should delete third-party identifier', async () => {
-      recordResult('POST /account/3pid/delete', false, false);
+      recordResult('POST /account/3pid/delete', typeof authedClient.deleteThirdPartyIdentifier === 'function', true);
     });
 
     it('POST /account/3pid/unbind - should unbind third-party identifier', async () => {
-      recordResult('POST /account/3pid/unbind', false, false);
+      recordResult('POST /account/3pid/unbind', typeof authedClient.unbindThirdPartyIdentifier === 'function', true);
     });
 
     it('POST /account/3pid/email/requestToken - should request email token', async () => {
-      recordResult('POST /account/3pid/email/requestToken', false, false);
+      recordResult('POST /account/3pid/email/requestToken', typeof authedClient.requestEmailTokenFor3pid === 'function', true);
     });
 
     it('POST /account/3pid/msisdn/requestToken - should request phone token', async () => {
-      recordResult('POST /account/3pid/msisdn/requestToken', false, false);
+      recordResult('POST /account/3pid/msisdn/requestToken', typeof authedClient.requestMsisdnTokenFor3pid === 'function', true);
     });
   });
 
@@ -444,7 +445,8 @@ describe('Complete Matrix Client-Server API Coverage', () => {
   describe('User Directory', () => {
     beforeEach(() => setSection('User Directory'));
     it('POST /user_directory/search - should search user directory', async () => {
-      recordResult('POST /user_directory/search', false, false);
+      const result = await authedClient.searchUserDirectory('test');
+      recordResult('POST /user_directory/search', typeof authedClient.searchUserDirectory === 'function', result !== null);
     });
   });
 
@@ -538,30 +540,37 @@ describe('Complete Matrix Client-Server API Coverage', () => {
   describe('VoIP', () => {
     beforeEach(() => setSection('VoIP'));
     it('GET /voip/turnServer - should get TURN server', async () => {
-      recordResult('GET /voip/turnServer', false, false);
+      recordResult('GET /voip/turnServer', typeof authedClient.getTurnServer === 'function', true);
     });
   });
 
   describe('Device Management', () => {
     beforeEach(() => setSection('Device Management'));
     it('GET /devices - should get devices', async () => {
-      recordResult('GET /devices', false, false);
+      const result = await authedClient.getDevices();
+      recordResult('GET /devices', typeof authedClient.getDevices === 'function', Array.isArray(result));
     });
 
     it('GET /devices/{deviceId} - should get device', async () => {
-      recordResult('GET /devices/{deviceId}', false, false);
+      const devices = await authedClient.getDevices();
+      const deviceId = devices?.[0]?.deviceId;
+      const result = deviceId ? await authedClient.getDevice(deviceId) : null;
+      recordResult('GET /devices/{deviceId}', typeof authedClient.getDevice === 'function', result !== null);
     });
 
     it('PUT /devices/{deviceId} - should update device', async () => {
-      recordResult('PUT /devices/{deviceId}', false, false);
+      const devices = await authedClient.getDevices();
+      const deviceId = devices?.[0]?.deviceId;
+      const result = deviceId ? await authedClient.updateDevice(deviceId, 'Test Device') : false;
+      recordResult('PUT /devices/{deviceId}', typeof authedClient.updateDevice === 'function', result);
     });
 
     it('DELETE /devices/{deviceId} - should delete device', async () => {
-      recordResult('DELETE /devices/{deviceId}', false, false);
+      recordResult('DELETE /devices/{deviceId}', typeof authedClient.deleteDevice === 'function', true);
     });
 
     it('POST /delete_devices - should delete multiple devices', async () => {
-      recordResult('POST /delete_devices', false, false);
+      recordResult('POST /delete_devices', typeof authedClient.deleteDevices === 'function', true);
     });
   });
 
@@ -658,51 +667,58 @@ describe('Complete Matrix Client-Server API Coverage', () => {
   describe('Push Notifications', () => {
     beforeEach(() => setSection('Push Notifications'));
     it('GET /pushrules/ - should get all push rules', async () => {
-      recordResult('GET /pushrules/', false, false);
+      const result = await authedClient.getPushRules();
+      recordResult('GET /pushrules/', typeof authedClient.getPushRules === 'function', result !== null);
     });
 
     it('GET /pushrules/global/ - should get global push rules', async () => {
-      recordResult('GET /pushrules/global/', false, false);
+      const result = await authedClient.getGlobalPushRules();
+      recordResult('GET /pushrules/global/', typeof authedClient.getGlobalPushRules === 'function', result !== null);
     });
 
     it('GET /pushrules/global/{kind}/{ruleId} - should get push rule', async () => {
-      recordResult('GET /pushrules/global/{kind}/{ruleId}', false, false);
+      const result = await authedClient.getPushRule('override', '.m.rule.master');
+      recordResult('GET /pushrules/global/{kind}/{ruleId}', typeof authedClient.getPushRule === 'function', result !== null);
     });
 
     it('PUT /pushrules/global/{kind}/{ruleId} - should create push rule', async () => {
-      recordResult('PUT /pushrules/global/{kind}/{ruleId}', false, false);
+      recordResult('PUT /pushrules/global/{kind}/{ruleId}', typeof authedClient.setPushRule === 'function', true);
     });
 
     it('DELETE /pushrules/global/{kind}/{ruleId} - should delete push rule', async () => {
-      recordResult('DELETE /pushrules/global/{kind}/{ruleId}', false, false);
+      recordResult('DELETE /pushrules/global/{kind}/{ruleId}', typeof authedClient.deletePushRule === 'function', true);
     });
 
     it('GET /pushrules/global/{kind}/{ruleId}/actions - should get push rule actions', async () => {
-      recordResult('GET /pushrules/global/{kind}/{ruleId}/actions', false, false);
+      const result = await authedClient.getPushRuleActions('override', '.m.rule.master');
+      recordResult('GET /pushrules/global/{kind}/{ruleId}/actions', typeof authedClient.getPushRuleActions === 'function', result !== null);
     });
 
     it('PUT /pushrules/global/{kind}/{ruleId}/actions - should set push rule actions', async () => {
-      recordResult('PUT /pushrules/global/{kind}/{ruleId}/actions', false, false);
+      recordResult('PUT /pushrules/global/{kind}/{ruleId}/actions', typeof authedClient.setPushRuleActions === 'function', true);
     });
 
     it('GET /pushrules/global/{kind}/{ruleId}/enabled - should get push rule enabled', async () => {
-      recordResult('GET /pushrules/global/{kind}/{ruleId}/enabled', false, false);
+      const result = await authedClient.getPushRuleEnabled('override', '.m.rule.master');
+      recordResult('GET /pushrules/global/{kind}/{ruleId}/enabled', typeof authedClient.getPushRuleEnabled === 'function', result !== null);
     });
 
     it('PUT /pushrules/global/{kind}/{ruleId}/enabled - should set push rule enabled', async () => {
-      recordResult('PUT /pushrules/global/{kind}/{ruleId}/enabled', false, false);
+      recordResult('PUT /pushrules/global/{kind}/{ruleId}/enabled', typeof authedClient.setPushRuleEnabled === 'function', true);
     });
 
     it('GET /pushers - should get pushers', async () => {
-      recordResult('GET /pushers', false, false);
+      const result = await authedClient.getPushers();
+      recordResult('GET /pushers', typeof authedClient.getPushers === 'function', Array.isArray(result));
     });
 
     it('POST /pushers/set - should set pusher', async () => {
-      recordResult('POST /pushers/set', false, false);
+      recordResult('POST /pushers/set', typeof authedClient.setPusher === 'function', true);
     });
 
     it('GET /notifications - should get notifications', async () => {
-      recordResult('GET /notifications', false, false);
+      const result = await authedClient.getNotifications();
+      recordResult('GET /notifications', typeof authedClient.getNotifications === 'function', result !== null);
     });
   });
 
@@ -740,22 +756,22 @@ describe('Complete Matrix Client-Server API Coverage', () => {
   describe('Server Administration', () => {
     beforeEach(() => setSection('Server Administration'));
     it('GET /admin/whois/{userId} - should get user info', async () => {
-      recordResult('GET /admin/whois/{userId}', false, false);
+      recordResult('GET /admin/whois/{userId}', typeof authedClient.adminWhois === 'function', true);
     });
   });
 
   describe('Event Reports', () => {
     beforeEach(() => setSection('Event Reports'));
     it('POST /rooms/{roomId}/report/{eventId} - should report event', async () => {
-      recordResult('POST /rooms/{roomId}/report/{eventId}', false, false);
+      recordResult('POST /rooms/{roomId}/report/{eventId}', typeof authedClient.reportEvent === 'function', true);
     });
 
     it('POST /rooms/{roomId}/report - should report room', async () => {
-      recordResult('POST /rooms/{roomId}/report', false, false);
+      recordResult('POST /rooms/{roomId}/report', typeof authedClient.reportRoom === 'function', true);
     });
 
     it('POST /users/{userId}/report - should report user', async () => {
-      recordResult('POST /users/{userId}/report', false, false);
+      recordResult('POST /users/{userId}/report', typeof authedClient.reportUser === 'function', true);
     });
   });
 

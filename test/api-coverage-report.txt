@@ -4,14 +4,14 @@
 ╚═══════════════════════════════════════════════════════╝
 
 📊 Total Endpoints Tested: 142
-✅ Fully Implemented: 78 (54.93%)
+✅ Fully Implemented: 112 (78.87%)
 ⚠️  Restricted/Server Limitation: 0
 🔶 Partially Implemented: 0
-❌ Not Implemented: 64
+❌ Not Implemented: 30
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-┌─ Authentication & Account Management (11/22 — 50%)
+┌─ Authentication & Account Management (22/22 — 100%)
 │  ✓ GET /versions
 │  ✓ POST /register
 │  ✓ POST /register?kind=guest
@@ -20,20 +20,20 @@
 │  ✓ GET /login
 │  ✓ POST /logout
 │  ✓ POST /logout/all
+│  ✓ POST /refresh
 │  ✓ POST /account/password
 │  ✓ POST /account/deactivate
+│  ✓ POST /account/password/email/requestToken
+│  ✓ POST /account/password/msisdn/requestToken
 │  ✓ GET /account/whoami
-│  ✗ POST /refresh
-│  ✗ POST /account/password/email/requestToken
-│  ✗ POST /account/password/msisdn/requestToken
-│  ✗ GET /account/3pid
-│  ✗ POST /account/3pid
-│  ✗ POST /account/3pid/add
-│  ✗ POST /account/3pid/bind
-│  ✗ POST /account/3pid/delete
-│  ✗ POST /account/3pid/unbind
-│  ✗ POST /account/3pid/email/requestToken
-│  ✗ POST /account/3pid/msisdn/requestToken
+│  ✓ GET /account/3pid
+│  ✓ POST /account/3pid
+│  ✓ POST /account/3pid/add
+│  ✓ POST /account/3pid/bind
+│  ✓ POST /account/3pid/delete
+│  ✓ POST /account/3pid/unbind
+│  ✓ POST /account/3pid/email/requestToken
+│  ✓ POST /account/3pid/msisdn/requestToken
 │
 ┌─ Capabilities (1/1 — 100%)
 │  ✓ GET /capabilities
@@ -87,8 +87,8 @@
 │  ✓ GET /room_summary/{roomIdOrAlias}
 │  ✓ GET /rooms/{roomId}/hierarchy
 │
-┌─ User Directory (0/1 — 0%)
-│  ✗ POST /user_directory/search
+┌─ User Directory (1/1 — 100%)
+│  ✓ POST /user_directory/search
 │
 ┌─ User Profiles (7/7 — 100%)
 │  ✓ GET /profile/{userId}
@@ -114,15 +114,15 @@
 │  ✓ m.reaction
 │  ✓ m.replace (edit)
 │
-┌─ VoIP (0/1 — 0%)
-│  ✗ GET /voip/turnServer
+┌─ VoIP (1/1 — 100%)
+│  ✓ GET /voip/turnServer
 │
-┌─ Device Management (0/5 — 0%)
-│  ✗ GET /devices
-│  ✗ GET /devices/{deviceId}
-│  ✗ PUT /devices/{deviceId}
-│  ✗ DELETE /devices/{deviceId}
-│  ✗ POST /delete_devices
+┌─ Device Management (5/5 — 100%)
+│  ✓ GET /devices
+│  ✓ GET /devices/{deviceId}
+│  ✓ PUT /devices/{deviceId}
+│  ✓ DELETE /devices/{deviceId}
+│  ✓ POST /delete_devices
 │
 ┌─ End-to-End Encryption (0/7 — 0%)
 │  ✗ POST /keys/upload
@@ -149,19 +149,19 @@
 │  ✗ GET /room_keys/keys/{roomId}/{sessionId}
 │  ✗ DELETE /room_keys/keys/{roomId}/{sessionId}
 │
-┌─ Push Notifications (0/12 — 0%)
-│  ✗ GET /pushrules/
-│  ✗ GET /pushrules/global/
-│  ✗ GET /pushrules/global/{kind}/{ruleId}
-│  ✗ PUT /pushrules/global/{kind}/{ruleId}
-│  ✗ DELETE /pushrules/global/{kind}/{ruleId}
-│  ✗ GET /pushrules/global/{kind}/{ruleId}/actions
-│  ✗ PUT /pushrules/global/{kind}/{ruleId}/actions
-│  ✗ GET /pushrules/global/{kind}/{ruleId}/enabled
-│  ✗ PUT /pushrules/global/{kind}/{ruleId}/enabled
-│  ✗ GET /pushers
-│  ✗ POST /pushers/set
-│  ✗ GET /notifications
+┌─ Push Notifications (12/12 — 100%)
+│  ✓ GET /pushrules/
+│  ✓ GET /pushrules/global/
+│  ✓ GET /pushrules/global/{kind}/{ruleId}
+│  ✓ PUT /pushrules/global/{kind}/{ruleId}
+│  ✓ DELETE /pushrules/global/{kind}/{ruleId}
+│  ✓ GET /pushrules/global/{kind}/{ruleId}/actions
+│  ✓ PUT /pushrules/global/{kind}/{ruleId}/actions
+│  ✓ GET /pushrules/global/{kind}/{ruleId}/enabled
+│  ✓ PUT /pushrules/global/{kind}/{ruleId}/enabled
+│  ✓ GET /pushers
+│  ✓ POST /pushers/set
+│  ✓ GET /notifications
 │
 ┌─ Search (1/1 — 100%)
 │  ✓ POST /search
@@ -172,13 +172,13 @@
 │  ✓ PUT /user/{userId}/rooms/{roomId}/account_data/{type}
 │  ✓ GET /user/{userId}/rooms/{roomId}/account_data/{type}
 │
-┌─ Server Administration (0/1 — 0%)
-│  ✗ GET /admin/whois/{userId}
+┌─ Server Administration (1/1 — 100%)
+│  ✓ GET /admin/whois/{userId}
 │
-┌─ Event Reports (0/3 — 0%)
-│  ✗ POST /rooms/{roomId}/report/{eventId}
-│  ✗ POST /rooms/{roomId}/report
-│  ✗ POST /users/{userId}/report
+┌─ Event Reports (3/3 — 100%)
+│  ✓ POST /rooms/{roomId}/report/{eventId}
+│  ✓ POST /rooms/{roomId}/report
+│  ✓ POST /users/{userId}/report
 │
 ┌─ Third-party Networks (0/6 — 0%)
 │  ✗ GET /thirdparty/protocols

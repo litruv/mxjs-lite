@@ -211,4 +211,39 @@ export const Rooms = (Base) => class extends Base {
       return null;
     }
   }
+
+  /**
+   * Reports an event in a room to the homeserver moderators.
+   * @param {string} roomId
+   * @param {string} eventId
+   * @param {string} [reason=''] - Human-readable reason for the report.
+   * @param {number} [score=0] - Severity score between -100 (most offensive) and 0 (inoffensive).
+   * @returns {Promise<boolean>} `true` on success.
+   */
+  async reportEvent(roomId, eventId, reason = '', score = 0) {
+    try {
+      const result = await this.api(`/rooms/${roomId}/report/${enc(eventId)}`, 'POST', { reason, score });
+      return !result.errcode;
+    } catch (e) {
+      cerr('reportEvent:', e);
+      return false;
+    }
+  }
+
+  /**
+   * Reports a room to the homeserver moderators.
+   * @param {string} roomId
+   * @param {string} [reason=''] - Human-readable reason for the report.
+   * @param {number} [score=0] - Severity score between -100 (most offensive) and 0 (inoffensive).
+   * @returns {Promise<boolean>} `true` on success.
+   */
+  async reportRoom(roomId, reason = '', score = 0) {
+    try {
+      const result = await this.api(`/rooms/${roomId}/report`, 'POST', { reason, score });
+      return !result.errcode;
+    } catch (e) {
+      cerr('reportRoom:', e);
+      return false;
+    }
+  }
 };
