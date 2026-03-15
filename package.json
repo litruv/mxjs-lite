@@ -12,6 +12,7 @@
   "scripts": {
     "build": "terser mxjs-lite.js -c -m --module -o build/mxjs-lite.min.js",
     "test": "vitest run test/api-coverage.test.js",
+    "posttest": "node update-badge.js",
     "prepublishOnly": "npm run build"
   },
   "keywords": [
