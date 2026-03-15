@@ -37,6 +37,38 @@ export const Rooms = (Base) => class extends Base {
   }
 
   /**
+   * Joins a room by room ID directly.
+   * @param {string} roomId
+   * @param {Object} [options={}] - Optional join parameters (third_party_signed, reason, etc.).
+   * @returns {Promise<{roomId: string}|null>} The joined room ID, or `null` on failure.
+   */
+  async joinRoomById(roomId, options = {}) {
+    try {
+      const result = await this.api(`/rooms/${roomId}/join`, "POST", options);
+      return result.errcode ? null : { roomId: result.room_id };
+    } catch (e) {
+      cerr("join by id:", e);
+      return null;
+    }
+  }
+
+  /**
+   * Knocks on a room (requests to join).
+   * @param {string} roomIdOrAlias
+   * @param {Object} [options={}] - Optional knock parameters (reason, server_name, etc.).
+   * @returns {Promise<{roomId: string}|null>} The room ID, or `null` on failure.
+   */
+  async knockRoom(roomIdOrAlias, options = {}) {
+    try {
+      const result = await this.api(`/knock/${enc(roomIdOrAlias)}`, "POST", options);
+      return result.errcode ? null : { roomId: result.room_id };
+    } catch (e) {
+      cerr("knock:", e);
+      return null;
+    }
+  }
+
+  /**
    * Leaves a room.
    * @param {string} roomId
    * @returns {Promise<boolean>} `true` on success.
@@ -47,6 +79,38 @@ export const Rooms = (Base) => class extends Base {
     } catch (e) {
       cerr("leave:", e);
       return false;
+    }
+  }
+
+  /**
+   * Forgets a room (must be left first).
+   * @param {string} roomId
+   * @returns {Promise<boolean>} `true` on success.
+   */
+  async forgetRoom(roomId) {
+    try {
+      return !(await this.api(`/rooms/${roomId}/forget`, "POST", {})).errcode;
+    } catch (e) {
+      cerr("forget:", e);
+      return false;
+    }
+  }
+
+  /**
+   * Upgrades a room to a new version.
+   * @param {string} roomId
+   * @param {string} newVersion - The new room version (e.g., "10").
+   * @returns {Promise<{replacementRoom: string}|null>} The new room ID, or `null` on failure.
+   */
+  async upgradeRoom(roomId, newVersion) {
+    try {
+      const result = await this.api(`/rooms/${roomId}/upgrade`, "POST", {
+        new_version: newVersion,
+      });
+      return result.errcode ? null : { replacementRoom: result.replacement_room };
+    } catch (e) {
+      cerr("upgrade:", e);
+      return null;
     }
   }
 

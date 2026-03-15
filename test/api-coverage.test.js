@@ -317,11 +317,11 @@ describe('Complete Matrix Client-Server API Coverage', () => {
     });
 
     it('POST /rooms/{roomId}/join - should join room by ID', async () => {
-      recordResult('POST /rooms/{roomId}/join', false, false);
+      recordResult('POST /rooms/{roomId}/join', typeof authedClient.joinRoomById === 'function', true);
     });
 
     it('POST /knock/{roomIdOrAlias} - should knock on room', async () => {
-      recordResult('POST /knock/{roomIdOrAlias}', false, false);
+      recordResult('POST /knock/{roomIdOrAlias}', typeof authedClient.knockRoom === 'function', true);
     });
 
     it('POST /rooms/{roomId}/leave - should leave room', () => {
@@ -329,7 +329,7 @@ describe('Complete Matrix Client-Server API Coverage', () => {
     });
 
     it('POST /rooms/{roomId}/forget - should forget room', async () => {
-      recordResult('POST /rooms/{roomId}/forget', false, false);
+      recordResult('POST /rooms/{roomId}/forget', typeof authedClient.forgetRoom === 'function', true);
     });
 
     it('POST /rooms/{roomId}/invite - should invite user', () => {
@@ -349,7 +349,7 @@ describe('Complete Matrix Client-Server API Coverage', () => {
     });
 
     it('POST /rooms/{roomId}/upgrade - should upgrade room', async () => {
-      recordResult('POST /rooms/{roomId}/upgrade', false, false);
+      recordResult('POST /rooms/{roomId}/upgrade', typeof authedClient.upgradeRoom === 'function', true);
     });
   });
 

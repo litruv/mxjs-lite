@@ -4,10 +4,10 @@
 ╚═══════════════════════════════════════════════════════╝
 
 📊 Total Endpoints Tested: 142
-✅ Fully Implemented: 38 (26.76%)
+✅ Fully Implemented: 42 (29.58%)
 ⚠️  Restricted/Server Limitation: 0
 🔶 Partially Implemented: 0
-❌ Not Implemented: 104
+❌ Not Implemented: 100
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -61,18 +61,18 @@
 │  ✗ GET /rooms/{roomId}/relations/{eventId}/{relType}/{eventType}
 │  ✗ GET /rooms/{roomId}/timestamp_to_event
 │
-┌─ Rooms - Management (7/11 — 64%)
+┌─ Rooms - Management (11/11 — 100%)
 │  ✓ POST /createRoom
 │  ✓ POST /join/{roomIdOrAlias}
+│  ✓ POST /rooms/{roomId}/join
+│  ✓ POST /knock/{roomIdOrAlias}
 │  ✓ POST /rooms/{roomId}/leave
+│  ✓ POST /rooms/{roomId}/forget
 │  ✓ POST /rooms/{roomId}/invite
 │  ✓ POST /rooms/{roomId}/kick
 │  ✓ POST /rooms/{roomId}/ban
 │  ✓ POST /rooms/{roomId}/unban
-│  ✗ POST /rooms/{roomId}/join
-│  ✗ POST /knock/{roomIdOrAlias}
-│  ✗ POST /rooms/{roomId}/forget
-│  ✗ POST /rooms/{roomId}/upgrade
+│  ✓ POST /rooms/{roomId}/upgrade
 │
 ┌─ Room Directory (2/11 — 18%)
 │  ✓ GET /directory/room/{roomAlias}
