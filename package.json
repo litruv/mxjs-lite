@@ -8,7 +8,7 @@
   "files": [
     "mxjs-lite.js",
     "src/",
-    "build/mxjs-lite.min.js"
+    "dist/mxjs-lite.min.js"
   ],
   "scripts": {
     "build": "rollup -c rollup.config.js",
