@@ -2,7 +2,7 @@
 
 [![npm version](https://img.shields.io/npm/v/@litruv/mxjs-lite.svg)](https://www.npmjs.com/package/@litruv/mxjs-lite)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![API Coverage](https://img.shields.io/badge/API%20coverage-23.13%25%20(34%2F147)-orange.svg)](test/api-coverage.test.js)
+[![API Coverage](https://img.shields.io/badge/API%20coverage-22.82%25%20(34%2F149)-orange.svg)](api-coverage-report.txt)
 
 Lightweight Matrix protocol client. Pure ES module, no dependencies.
 
@@ -1303,7 +1303,7 @@ npm test  # Test all 147 Matrix API endpoints (34 implemented, 113 not implement
 
 This test automatically creates and cleans up temporary test accounts on chat.ruv.wtf - no configuration needed!
 
-**API coverage**: 23.13% (34/147 Matrix endpoints) - See [test/api-coverage.test.js](test/api-coverage.test.js)
+**API coverage**: 22.82% (34/149 Matrix endpoints) - See [test/api-coverage.test.js](test/api-coverage.test.js)
 
 ---
 
