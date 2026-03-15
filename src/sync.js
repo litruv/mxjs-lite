@@ -2,11 +2,16 @@ import {
   cerr,
   M_MSG,
   M_MEMBER,
+  M_REACT,
   M_RNAME,
   M_RTOPIC,
   M_RAVATAR,
   M_REDACTION,
+  M_REL,
 } from './constants.js';
+
+const M_PLEVEL = 'm.room.power_levels';
+const M_ALIAS  = 'm.room.canonical_alias';
 
 /**
  * Mixin adding Matrix /sync polling and sync data processing to a base client class.
@@ -36,20 +41,26 @@ export const Sync = (Base) => class extends Base {
 
   /**
    * Processes a sync response and emits structured events for new activity.
-   * Call this with the data returned by {@link sync} after each poll.
+   * Call this with the data returned by {@link sync} after each poll, or use
+   * {@link startSync} to have the library handle the loop automatically.
    *
-   * Emits:
-   * - `roomJoin` `{ roomId }` — a room appeared in the sync response for the first time.
-   * - `roomLeave` `{ roomId }` — the client has left or been removed from a room.
-   * - `invite` `{ roomId }` — the client received a room invitation.
-   * - `message` `{ roomId, event }` — a new (non-edit) `m.room.message` event.
-   * - `edit` `{ roomId, edits, newBody, event }` — a message was edited; `edits` is the event ID of the original message, `newBody` is the new text.
-   * - `memberUpdate` `{ roomId, change, event }` — a membership change; `change` is the object returned by `getMembershipChange`.
-   * - `roomNameChange` `{ roomId, name, prevName, event }` — the room name was changed.
-   * - `roomTopicChange` `{ roomId, topic, prevTopic, event }` — the room topic was changed.
-   * - `roomAvatarChange` `{ roomId, avatarUrl, prevAvatarUrl, event }` — the room avatar was changed.
-   * - `redaction` `{ roomId, redacts, event }` — an event was redacted; `redacts` is the original event ID.
-   * - `typing` `{ roomId, userIds }` — the current set of typing users changed.
+   * Emits (use {@link ClientEvents} constants as event names):
+   * - `roomJoin` `{ roomId }` — a room appeared in sync for the first time.
+   * - `roomLeave` `{ roomId }` — the client left or was removed from a room.
+   * - `inviteReceive` `{ roomId }` — a room invitation was received.
+   * - `messageCreate` `{ roomId, event }` — a new (non-edit) `m.room.message` event.
+   * - `messageUpdate` `{ roomId, edits, newBody, event }` — a message was edited.
+   * - `messageDelete` `{ roomId, redacts, event }` — an event was redacted.
+   * - `reactionAdd` `{ roomId, reacts, key, event }` — an `m.reaction` was added.
+   * - `memberUpdate` `{ roomId, change, event }` — a membership state change.
+   * - `roomNameUpdate` `{ roomId, name, prevName, event }` — room name changed.
+   * - `roomTopicUpdate` `{ roomId, topic, prevTopic, event }` — room topic changed.
+   * - `roomAvatarUpdate` `{ roomId, avatarUrl, prevAvatarUrl, event }` — room avatar changed.
+   * - `typingStart` `{ roomId, userIds }` — typing user set changed.
+   * - `receiptUpdate` `{ roomId, receipts }` — read receipts arrived.
+   * - `roomAccountDataUpdate` `{ roomId, type, content }` — room account data changed.
+   * - `presenceUpdate` `{ userId, presence, lastActiveAgo, statusMsg, currentlyActive }` — user presence changed.
+   * - `accountDataUpdate` `{ type, content }` — global account data changed.
    *
    * @param {Object} data - The sync response as returned by {@link sync}.
    */
@@ -64,12 +75,16 @@ export const Sync = (Base) => class extends Base {
 
       for (const event of roomData.timeline?.events ?? []) {
         if (event.type === M_MSG && !this.isEditEvent(event)) {
-          this.emit('message', { roomId, event });
+          this.emit('messageCreate', { roomId, event });
         }
         if (event.type === M_MSG && this.isEditEvent(event)) {
           const rel = this.getEventRelation(event);
           const newBody = this.getEditedBody(event);
-          this.emit('edit', { roomId, edits: rel.event_id, newBody, event });
+          this.emit('messageUpdate', { roomId, edits: rel.event_id, newBody, event });
+        }
+        if (event.type === M_REACT) {
+          const rel = event.content?.[M_REL];
+          if (rel) this.emit('reactionAdd', { roomId, reacts: rel.event_id, key: rel.key, event });
         }
         if (event.type === M_MEMBER) {
           const change = this.getMembershipChange(event);
@@ -77,7 +92,7 @@ export const Sync = (Base) => class extends Base {
         }
         if (event.type === M_RNAME) {
           const prevContent = this.getPrevContent(event);
-          this.emit('roomNameChange', {
+          this.emit('roomNameUpdate', {
             roomId,
             name: event.content?.name ?? null,
             prevName: prevContent?.name ?? null,
@@ -86,7 +101,7 @@ export const Sync = (Base) => class extends Base {
         }
         if (event.type === M_RTOPIC) {
           const prevContent = this.getPrevContent(event);
-          this.emit('roomTopicChange', {
+          this.emit('roomTopicUpdate', {
             roomId,
             topic: event.content?.topic ?? null,
             prevTopic: prevContent?.topic ?? null,
@@ -95,7 +110,7 @@ export const Sync = (Base) => class extends Base {
         }
         if (event.type === M_RAVATAR) {
           const prevContent = this.getPrevContent(event);
-          this.emit('roomAvatarChange', {
+          this.emit('roomAvatarUpdate', {
             roomId,
             avatarUrl: event.content?.url ?? null,
             prevAvatarUrl: prevContent?.url ?? null,
@@ -103,14 +118,31 @@ export const Sync = (Base) => class extends Base {
           });
         }
         if (event.type === M_REDACTION) {
-          this.emit('redaction', { roomId, redacts: event.redacts, event });
+          this.emit('messageDelete', { roomId, redacts: event.redacts, event });
+        }
+        if (event.type === M_PLEVEL) {
+          this.emit('powerLevelUpdate', { roomId, content: event.content, event });
+        }
+        if (event.type === M_ALIAS) {
+          this.emit('canonicalAliasUpdate', { roomId, alias: event.content?.alias ?? null, event });
         }
       }
 
       for (const event of roomData.ephemeral?.events ?? []) {
         if (event.type === 'm.typing') {
-          this.emit('typing', { roomId, userIds: event.content?.user_ids ?? [] });
+          this.emit('typingStart', { roomId, userIds: event.content?.user_ids ?? [] });
         }
+        if (event.type === 'm.receipt') {
+          const receipts = Object.entries(event.content ?? {}).map(([eventId, readers]) => ({
+            eventId,
+            read: Object.keys(readers?.['m.read'] ?? {}),
+          }));
+          if (receipts.length) this.emit('receiptUpdate', { roomId, receipts });
+        }
+      }
+
+      for (const event of roomData.account_data?.events ?? []) {
+        this.emit('roomAccountDataUpdate', { roomId, type: event.type, content: event.content });
       }
     }
 
@@ -120,7 +152,21 @@ export const Sync = (Base) => class extends Base {
     }
 
     for (const roomId of Object.keys(data.rooms?.invite ?? {})) {
-      this.emit('invite', { roomId });
+      this.emit('inviteReceive', { roomId });
+    }
+
+    for (const event of data.presence?.events ?? []) {
+      this.emit('presenceUpdate', {
+        userId: event.sender,
+        presence: event.content?.presence ?? null,
+        lastActiveAgo: event.content?.last_active_ago ?? null,
+        statusMsg: event.content?.status_msg ?? null,
+        currentlyActive: event.content?.currently_active ?? null,
+      });
+    }
+
+    for (const event of data.account_data?.events ?? []) {
+      this.emit('accountDataUpdate', { type: event.type, content: event.content });
     }
   }
 };

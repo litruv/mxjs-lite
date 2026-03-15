@@ -2,7 +2,7 @@
  * mxjs-lite IRC-style Chat Interface
  */
 
-import MxjsClient from '../dist/mxjs-lite.min.js';
+import MxjsClient, { ClientEvents } from '../dist/mxjs-lite.min.js';
 import { RoomState } from './room-state.js';
 import { ContextMenu } from './context-menu.js';
 import { CommandHandler } from './chat-commands.js';
@@ -18,8 +18,6 @@ export class ChatClient {
         this.rooms        = new Map();
         /** @type {string|null} */
         this.activeRoomId = null;
-        this.syncToken    = null;
-        this.syncing      = false;
         this.password     = null;
         this.isNewAccount = false;
         this.authMode     = 'register';
@@ -384,7 +382,11 @@ export class ChatClient {
                 this.elements.messageInput.selectionStart = this.elements.messageInput.selectionEnd = body.length;
             }}] : []),
             ...(isSelf || canMod ? [{ label: '🗑️ Delete', danger: true, action: () => this.client.redactEvent(room.roomId, eventId) }] : []),
-            { label: '📋 Copy Event ID', action: () => navigator.clipboard?.writeText(eventId) },
+            { label: '� Report…', danger: true, action: async () => {
+                const reason = prompt('Reason for reporting this message:');
+                if (reason !== null) await this.client.reportEvent(room.roomId, eventId, reason);
+            }},
+            { label: '�📋 Copy Event ID', action: () => navigator.clipboard?.writeText(eventId) },
         ]);
     }
 
@@ -439,6 +441,22 @@ export class ChatClient {
                     this.addSystemMessage(`Room renamed to ${name.trim()}`);
                 } catch (e) { this.addErrorMessage(`Failed to rename: ${e.message}`); }
             }}] : []),
+            ...(canMod ? [{ label: '📝 Set Topic…', action: async () => {
+                const topic = prompt('New room topic:');
+                if (topic === null) return;
+                try {
+                    await this.client.setRoomTopic(roomId, topic);
+                    this.addSystemMessage(`Topic set: ${topic}`);
+                } catch (e) { this.addErrorMessage(`Failed to set topic: ${e.message}`); }
+            }}] : []),
+            ...(canMod ? [{ label: '📨 Invite User…', action: async () => {
+                const userId = prompt('User ID to invite (e.g. @user:server):');
+                if (!userId?.startsWith('@')) return;
+                try {
+                    if (!await this.client.inviteUser(roomId, userId)) throw new Error('Server refused');
+                    this.addSystemMessage(`Invited ${userId}`);
+                } catch (e) { this.addErrorMessage(`Failed to invite: ${e.message}`); }
+            }}] : []),
             ...(canMod ? [null] : []),
             { label: '🚪 Leave', danger: true, action: async () => {
                 try {
@@ -450,17 +468,26 @@ export class ChatClient {
     }
 
     #showUserContextMenu(x, y, userId) {
-        const isSelf = userId === this.client?.userId;
-        const roomId = this.activeRoomId;
+        const isSelf  = userId === this.client?.userId;
+        const roomId  = this.activeRoomId;
+        const room    = this.rooms.get(roomId);
+        const canMod  = room?.getPowerLevel(this.client?.userId) >= 50;
         this.contextMenu.show(x, y, [
-            { label: '👤 View Profile', action: async () => {
+            { label: '\u{1F464} View Profile', action: async () => {
                 const p = await this.client.getProfile(userId);
                 this.addSystemMessage(`${userId}: ${p?.displayName || '(no name)'} | ${p?.avatarUrl || '(no avatar)'}`);
             }},
             ...(isSelf ? [] : [
                 null,
-                { label: '👢 Kick', danger: true, action: () => this.client.kickUser(roomId, userId) },
-                { label: '🚫 Ban',  danger: true, action: () => this.client.banUser(roomId, userId) },
+                ...(canMod ? [
+                    { label: '\u{1F462} Kick', danger: true, action: () => this.client.kickUser(roomId, userId) },
+                    { label: '\u{1F6AB} Ban',  danger: true, action: () => this.client.banUser(roomId, userId) },
+                    { label: '\u{2705} Unban', action: () => this.client.unbanUser(roomId, userId) },
+                ] : []),
+                { label: '\u{1F6A9} Report', danger: true, action: async () => {
+                    const reason = prompt('Reason for reporting this user:');
+                    if (reason !== null) await this.client.reportUser(userId, reason);
+                }},
             ]),
         ]);
     }
@@ -538,13 +565,6 @@ export class ChatClient {
                 Notification.requestPermission();
             }
 
-            // Mention handler
-            this.client.on('mention', ({ roomId, event, room }) => {
-                const msgEl = room.messagesEl?.querySelector(`[data-event-id="${event.event_id}"]`);
-                if (msgEl) msgEl.classList.add('mentioned');
-                const senderName = this.getDisplayName(event.sender, room);
-                this.#showMentionNotification(senderName, event.content.body || '', roomId);
-            });
             let authResult;
 
             if (this.authMode === 'guest') {
@@ -562,41 +582,16 @@ export class ChatClient {
             }
 
             this.password = password || null;
-            this.addSystemMessage(`Connected as ${authResult.userId}`);
 
             const joinResult = await this.client.joinRoom(roomAlias);
             if (!joinResult) throw new Error(`Failed to join room – check alias and server`);
 
-            this.setStatus('connected', authResult.userId);
-            this.elements.connectionForm.style.display  = 'none';
-            this.elements.messageForm.style.display     = 'flex';
-            this.elements.disconnectBtn.style.display   = 'inline-block';
+            this.addSystemMessage(`Connected as ${authResult.userId}`);
 
-            // Drain the initial sync to get a next_batch token, so the ongoing
-            // sync loop doesn't re-deliver the same messages that enterRoom
-            // fetches via getMessages.
-            const initSync = await this.client.sync(null, 0);
-            if (initSync?.next_batch) this.syncToken = initSync.next_batch;
+            this.#bindClientEvents(joinResult.roomId, roomAlias);
 
-            // Restore all rooms the user is already joined to — state only, no API calls.
-            // History and members load lazily when a room is activated.
-            for (const [roomId, roomData] of Object.entries(initSync?.rooms?.join ?? {})) {
-                const stateEvents = roomData.state?.events ?? [];
-                const alias = stateEvents.find(e => e.type === 'm.room.canonical_alias')?.content?.alias ?? null;
-                const name  = stateEvents.find(e => e.type === 'm.room.name')?.content?.name ?? null;
-                const room  = this.ensureRoom(roomId, alias);
-                if (name) room.displayName = name;
-                stateEvents.forEach(e => {
-                    if (e.type === 'm.room.power_levels') room.applyPowerLevels(e.content);
-                    if (e.type === 'm.room.member' && e.content?.membership === 'join')
-                        room.setMember(e.state_key, e.content.displayname, null);
-                });
-            }
-            this.updateChannelList();
-
-            await this.enterRoom(joinResult.roomId, roomAlias);
-            this.elements.messageInput.focus();
-            this.startSync();
+            // startSync does a drain sync (fires RoomJoin+Ready), then begins long-polling.
+            await this.client.startSync(30000);
 
         } catch (error) {
             this.addErrorMessage(error.message);
@@ -607,7 +602,7 @@ export class ChatClient {
     }
 
     async disconnect() {
-        this.syncing = false;
+        this.client?.stopSync();
 
         this.activeRoomId = null;
         this.elements.globalMessages.style.display = 'flex';
@@ -624,7 +619,6 @@ export class ChatClient {
         this.rooms.forEach(r => r.destroy());
         this.rooms.clear();
         this.password     = null;
-        this.syncToken    = null;
         this.isNewAccount = false;
 
         this.setStatus('disconnected', 'Disconnected');
@@ -640,136 +634,174 @@ export class ChatClient {
 
     /** @param {RoomState} room */
     async loadMembers(room) {
-        const members = await this.client.getRoomMembers(room.roomId);
-        if (!members) return;
+        const state = await this.client.getRoomAllState(room.roomId);
+        if (!state) return;
+        if (state.powerLevels) room.applyPowerLevels(state.powerLevels);
         room.members.clear();
-        members.forEach(m => room.setMember(m.userId, m.displayName, null));
+        for (const m of state.members) {
+            if (m.membership === 'join') room.setMember(m.userId, m.displayName, null);
+        }
+        if (!room.displayName || room.displayName === room.roomId) {
+            room.displayName = state.canonicalAlias || state.name || room.displayName;
+        }
+        if (this.activeRoomId === room.roomId) {
+            this.elements.topic.textContent = room.displayName;
+            this.updateChannelList();
+        }
         this.updateUserList(room);
     }
 
-    startSync() {
-        this.syncing = true;
-        this.#syncLoop();
-    }
+    /**
+     * Binds all ClientEvents listeners onto the current client instance.
+     * @param {string} entryRoomId - Room ID to navigate to once sync is ready.
+     * @param {string} roomAlias   - Alias used in the connect form (display label).
+     */
+    #bindClientEvents(entryRoomId, roomAlias) {
+        const c = this.client;
 
-    async #syncLoop() {
-        while (this.syncing) {
-            try {
-                const data = await this.client.sync(this.syncToken, 30000);
-                if (!data || data.errcode) throw new Error('Sync failed');
-                this.syncToken = data.next_batch;
-                for (const [roomId, roomData] of Object.entries(data.rooms?.join ?? {})) {
-                    const room = this.rooms.get(roomId);
-                    if (room) this.#processSyncRoom(room, roomData);
-                }
-            } catch (e) {
-                console.error('Sync error:', e);
-                this.addErrorMessage('Sync error, retrying…');
-                await new Promise(r => setTimeout(r, 5000));
+        c.on(ClientEvents.Ready, () => {
+            this.setStatus('connected', c.userId);
+            this.elements.connectionForm.style.display  = 'none';
+            this.elements.messageForm.style.display     = 'flex';
+            this.elements.disconnectBtn.style.display   = 'inline-block';
+            this.enterRoom(entryRoomId, roomAlias);
+            this.elements.messageInput.focus();
+        });
+
+        c.on(ClientEvents.SyncError, ({ error }) => {
+            console.error('Sync error:', error);
+            this.addErrorMessage('Sync error, retrying…');
+        });
+
+        c.on(ClientEvents.RoomJoin, ({ roomId }) => {
+            this.ensureRoom(roomId);
+            this.updateChannelList();
+        });
+
+        c.on(ClientEvents.RoomLeave, ({ roomId }) => {
+            this.removeRoom(roomId);
+        });
+
+        c.on(ClientEvents.InviteReceive, ({ roomId }) => {
+            this.addSystemMessage(`Invited to ${roomId} — use /join to accept`);
+        });
+
+        c.on(ClientEvents.MessageCreate, ({ roomId, event }) => {
+            const room = this.rooms.get(roomId);
+            if (!room) return;
+            this.renderEvent(room, event);
+            if (c.isMention(event, c.userId)) {
+                c.emit('mention', { roomId, event, room });
             }
-        }
-    }
-
-    /** @param {RoomState} room  @param {Object} roomData */
-    #processSyncRoom(room, roomData) {
-        const isActive = room.roomId === this.activeRoomId;
-
-        for (const event of roomData.state?.events ?? []) {
-            if (event.type === 'm.room.power_levels') room.applyPowerLevels(event.content);
-            if (event.type === 'm.room.member' && event.content?.membership === 'join')
-                room.setMember(event.state_key, event.content.displayname, null);
-            if (event.type === 'm.room.name' && event.content?.name)
-                room.displayName = event.content.name;
-            if (event.type === 'm.room.canonical_alias' && event.content?.alias)
-                room.displayName = event.content.alias;
-        }
-
-        let lastEventId = null;
-        for (const event of roomData.timeline?.events ?? []) {
-            if (event.type === 'm.room.power_levels') {
-                room.applyPowerLevels(event.content);
-                if (isActive) this.updateUserList(room);
-            }
-
-            if (event.type === 'm.room.name' && event.content?.name) {
-                room.displayName = event.content.name;
-                if (isActive) this.elements.topic.textContent = room.displayName;
+            const isActive = roomId === this.activeRoomId;
+            if (!isActive) {
+                room.unreadCount++;
                 this.updateChannelList();
+            } else if (event.event_id) {
+                c.setReadMarkers(roomId, event.event_id, event.event_id).catch(() => {});
+                room.lastReadEventId = event.event_id;
             }
+        });
 
-            if (event.type === 'm.room.canonical_alias' && event.content?.alias) {
-                room.displayName = event.content.alias;
-                if (isActive) this.elements.topic.textContent = room.displayName;
-                this.updateChannelList();
+        c.on(ClientEvents.MessageUpdate, ({ roomId, edits, newBody }) => {
+            const room = this.rooms.get(roomId);
+            if (!room) return;
+            const msgEl = room.messagesEl?.querySelector(`[data-event-id="${edits}"]`);
+            if (!msgEl) return;
+            const contentEl = msgEl.querySelector('.message-content');
+            if (contentEl) contentEl.textContent = newBody;
+            if (!msgEl.querySelector('.edited-tag'))
+                msgEl.appendChild(Object.assign(document.createElement('span'), { className: 'edited-tag', textContent: '(edited)' }));
+        });
+
+        c.on(ClientEvents.MessageDelete, ({ roomId, redacts }) => {
+            const room = this.rooms.get(roomId);
+            if (!room) return;
+            const msgEl = room.messagesEl?.querySelector(`[data-event-id="${redacts}"]`);
+            if (msgEl) msgEl.classList.add('redacted');
+        });
+
+        c.on(ClientEvents.ReactionAdd, ({ roomId, reacts, key, event }) => {
+            const room = this.rooms.get(roomId);
+            if (room) this.#addReaction(room, reacts, key, event.sender);
+        });
+
+        c.on(ClientEvents.MemberUpdate, ({ roomId, change }) => {
+            const room = this.rooms.get(roomId);
+            if (!room) return;
+            const isActive = roomId === this.activeRoomId;
+            const name = change.displayName || this.getDisplayName(change.userId, room);
+            if (change.type === 'join') {
+                room.setMember(change.userId, change.displayName, null);
+                if (isActive) this.addSystemMessage(`${name} joined`);
+            } else if (change.type === 'rename') {
+                room.setMember(change.userId, change.displayName, null);
+                if (isActive) this.addSystemMessage(`${change.prevDisplayName} → ${name}`);
+            } else if (change.type === 'leave') {
+                room.members.delete(change.userId);
+                if (isActive) this.addSystemMessage(`${name} left`);
+            } else if (change.type === 'kick') {
+                room.members.delete(change.userId);
+                if (isActive) this.addSystemMessage(`${name} was kicked by ${this.getDisplayName(change.kicker, room)}`);
+            } else if (change.type === 'ban') {
+                room.members.delete(change.userId);
+                if (isActive) this.addSystemMessage(`${name} was banned by ${this.getDisplayName(change.kicker, room)}`);
             }
+            if (isActive) this.updateUserList(room);
+        });
 
-            if (event.type === 'm.room.message') {
-                if (this.client.isEditEvent(event)) {
-                    const rel = this.client.getEventRelation(event);
-                    const newBody = this.client.getEditedBody(event);
-                    const msgEl   = room.messagesEl?.querySelector(`[data-event-id="${rel.event_id}"]`);
-                    if (msgEl) {
-                        const contentEl = msgEl.querySelector('.message-content');
-                        if (contentEl) contentEl.textContent = newBody;
-                        if (!msgEl.querySelector('.edited-tag'))
-                            msgEl.appendChild(Object.assign(document.createElement('span'), { className: 'edited-tag', textContent: '(edited)' }));
-                    }
-                } else {
-                    lastEventId = event.event_id;
-                    this.renderEvent(room, event);
-                    if (this.client.isMention(event, this.client.userId)) {
-                        this.client.emit('mention', { roomId: room.roomId, event, room });
-                    }
-                    if (!isActive) { room.unreadCount++; this.updateChannelList(); }
-                }
-            }
+        c.on(ClientEvents.RoomNameUpdate, ({ roomId, name }) => {
+            const room = this.rooms.get(roomId);
+            if (!room || !name) return;
+            room.displayName = name;
+            this.updateChannelList();
+            if (roomId === this.activeRoomId) this.elements.topic.textContent = name;
+        });
 
-            if (this.client.isReactionEvent(event)) {
-                const rel = this.client.getEventRelation(event);
-                if (rel?.event_id && rel.key)
-                    this.#addReaction(room, rel.event_id, rel.key, event.sender);
-            }
+        c.on(ClientEvents.RoomTopicUpdate, ({ roomId, topic }) => {
+            if (roomId === this.activeRoomId && topic)
+                this.addSystemMessage(`Topic: ${topic}`);
+        });
 
-            if (event.type === 'm.room.member') {
-                const change = this.client.getMembershipChange(event);
-                if (!change) continue;
-                const name = change.displayName || this.getDisplayName(change.userId, room);
-
-                if (change.type === 'join') {
-                    room.setMember(change.userId, change.displayName, null);
-                    if (isActive) this.addSystemMessage(`${name} joined`);
-                } else if (change.type === 'rename') {
-                    room.setMember(change.userId, change.displayName, null);
-                    if (isActive) this.addSystemMessage(`${change.prevDisplayName} → ${name}`);
-                } else if (change.type === 'leave') {
-                    room.members.delete(change.userId);
-                    if (isActive) this.addSystemMessage(`${name} left`);
-                } else if (change.type === 'kick') {
-                    room.members.delete(change.userId);
-                    if (isActive) this.addSystemMessage(`${name} was kicked by ${this.getDisplayName(change.kicker, room)}`);
-                } else if (change.type === 'ban') {
-                    room.members.delete(change.userId);
-                    if (isActive) this.addSystemMessage(`${name} was banned by ${this.getDisplayName(change.kicker, room)}`);
-                }
-                if (isActive) this.updateUserList(room);
-            }
-        }
-
-        if (lastEventId && lastEventId !== room.lastReadEventId) {
-            room.lastReadEventId = lastEventId;
-            this.client.sendReadReceipt(room.roomId, lastEventId).catch(() => {});
-        }
-
-        for (const event of roomData.ephemeral?.events ?? []) {
-            if (event.type !== 'm.typing') continue;
-            const typingIds = new Set(event.content?.user_ids ?? []);
+        c.on(ClientEvents.TypingStart, ({ roomId, userIds }) => {
+            const room = this.rooms.get(roomId);
+            if (!room) return;
+            const isActive = roomId === this.activeRoomId;
+            const typingIds = new Set(userIds);
             for (const uid of [...room.typingUsers]) {
                 if (!typingIds.has(uid)) room.setTyping(uid, false, r => isActive && this.updateUserList(r));
             }
             for (const uid of typingIds) {
-                if (uid !== this.client?.userId) room.setTyping(uid, true, r => isActive && this.updateUserList(r));
+                if (uid !== c.userId) room.setTyping(uid, true, r => isActive && this.updateUserList(r));
             }
-        }
+        });
+
+        c.on(ClientEvents.PowerLevelUpdate, ({ roomId, content }) => {
+            const room = this.rooms.get(roomId);
+            if (!room) return;
+            room.applyPowerLevels(content);
+            if (roomId === this.activeRoomId) this.updateUserList(room);
+        });
+
+        c.on(ClientEvents.CanonicalAliasUpdate, ({ roomId, alias }) => {
+            const room = this.rooms.get(roomId);
+            if (!room || !alias) return;
+            room.displayName = alias;
+            this.updateChannelList();
+            if (roomId === this.activeRoomId) this.elements.topic.textContent = alias;
+        });
+
+        c.on(ClientEvents.PresenceUpdate, ({ userId, presence }) => {
+            const item = document.querySelector(`#userList [data-user-id="${CSS.escape(userId)}"]`);
+            if (item) item.dataset.presence = presence ?? 'offline';
+        });
+
+        c.on('mention', ({ roomId, event, room }) => {
+            const msgEl = room.messagesEl?.querySelector(`[data-event-id="${event.event_id}"]`);
+            if (msgEl) msgEl.classList.add('mentioned');
+            const senderName = this.getDisplayName(event.sender, room);
+            this.#showMentionNotification(senderName, event.content.body || '', roomId);
+        });
     }
 
     async sendMessage() {

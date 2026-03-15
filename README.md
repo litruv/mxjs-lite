@@ -4,6 +4,8 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![API Coverage](https://img.shields.io/badge/API%20coverage-78.87%25%20(112%2F142)-orange.svg)](test/api-coverage-report.txt)
 
+Covers 100% of the non E2EE Matrix API endpoints!
+
 Lightweight Matrix protocol client. Pure ES module, no dependencies.
 
 ```
@@ -19,13 +21,18 @@ or import directly into your website
 
 
 ```js
-import MxjsClient from '@litruv/mxjs-lite';
+import MxjsClient, { ClientEvents } from '@litruv/mxjs-lite';
 
 const mx = new MxjsClient({ homeserver: 'https://matrix.org' });
 await mx.login('alice', 's3cr3t');
-const roomId = await mx.resolveRoomAlias('#general:matrix.org');
-await mx.joinRoom(roomId);
-await mx.sendMessage(roomId, 'Hello, world!');
+await mx.joinRoom('#general:matrix.org');
+
+mx.on(ClientEvents.Ready, () => console.log('Ready!'));
+mx.on(ClientEvents.MessageCreate, ({ roomId, event }) => {
+    console.log(`[${roomId}] ${event.sender}: ${event.content?.body}`);
+});
+
+mx.startSync();
 ```
 
 ---
@@ -124,6 +131,8 @@ new MxjsClient([options])
 | [`.uploadMedia()`](#uploadmediadata-contenttype-filename) |
 | [`.sync()`](#syncsince-timeout) |
 | [`.processSyncData()`](#processsyncdatadata) |
+| [`.startSync()`](#startsynctimeout-since) |
+| [`.stopSync()`](#stopsync) |
 
 ### Event System
 
@@ -132,23 +141,34 @@ new MxjsClient([options])
 | [`.on()`](#onevent-fn) |
 | [`.off()`](#offevent-fn) |
 | [`.emit()`](#emitevent-args) |
+| [`ClientEvents`](#clientevents) |
 
 ### Events
 
+[accountDataUpdate](#event-accountdataupdate)  
+[canonicalAliasUpdate](#event-canonicaliasupdate)  
 [connect](#event-connect)  
 [disconnect](#event-disconnect)  
-[edit](#event-edit)  
-[invite](#event-invite)  
+[inviteReceive](#event-invitereceive)  
 [memberUpdate](#event-memberupdate)  
 [mention](#event-mention)  
-[message](#event-message)  
-[redaction](#event-redaction)  
-[roomAvatarChange](#event-roomavatarchange)  
+[messageCreate](#event-messagecreate)  
+[messageDelete](#event-messagedelete)  
+[messageUpdate](#event-messageupdate)  
+[powerLevelUpdate](#event-powerlevelupdate)  
+[presenceUpdate](#event-presenceupdate)  
+[reactionAdd](#event-reactionadd)  
+[ready](#event-ready)  
+[receiptUpdate](#event-receiptupdate)  
+[roomAccountDataUpdate](#event-roomaccountdataupdate)  
+[roomAvatarUpdate](#event-roomavatarupdate)  
 [roomJoin](#event-roomjoin)  
 [roomLeave](#event-roomleave)  
-[roomNameChange](#event-roomnamechange)  
-[roomTopicChange](#event-roomtopicchange)  
-[typing](#event-typing)
+[roomNameUpdate](#event-roomnameupdate)  
+[roomTopicUpdate](#event-roomtopicupdate)  
+[syncComplete](#event-synccomplete)  
+[syncError](#event-syncerror)  
+[typingStart](#event-typingstart)
 
 ### Event Helpers
 
@@ -777,7 +797,7 @@ while (true) {
 
 ### .processSyncData(data)
 
-Processes a raw sync response and emits structured events for all new activity. Call this after each `.sync()` poll. Emits `roomJoin`, `roomLeave`, `invite`, `message`, `memberUpdate`, and `typing` — see [Event Details](#event-details) for payload shapes.
+Processes a raw sync response and emits structured events for all new activity. Called automatically by [`startSync()`](#startsynctimeout-since), or call manually after each `.sync()` poll. Emits `roomJoin`, `roomLeave`, `inviteReceive`, `messageCreate`, `messageUpdate`, `messageDelete`, `reactionAdd`, `memberUpdate`, `typingStart`, `receiptUpdate`, `roomNameUpdate`, `roomTopicUpdate`, `roomAvatarUpdate`, `powerLevelUpdate`, `canonicalAliasUpdate`, `presenceUpdate`, `accountDataUpdate`, `roomAccountDataUpdate` — see [Event Details](#event-details) for payload shapes.
 
 | Parameter | Type | Description |
 |---|---|---|
@@ -792,6 +812,39 @@ while (true) {
     mx.processSyncData(data);
     since = data?.next_batch ?? since;
 }
+```
+
+> Prefer [`startSync()`](#startsynctimeout-since) for automatic loop management.
+
+---
+
+### .startSync([timeout[, since]])
+
+Starts the automatic long-poll sync loop. On first call, performs an initial drain sync (timeout=0) to consume existing events and populate rooms, then emits [`ready`](#event-ready). Subsequent polls use `timeout` to keep the connection open until the server has new data.
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `timeout` | `number` | `30000` | Long-poll timeout per request in ms |
+| `since` | `string\|null` | `null` | Optional initial sync token. If provided, the drain sync is skipped and polling begins immediately from this token. |
+
+**Returns:** `Promise<void>`
+
+```js
+await mx.login('alice', 's3cr3t');
+mx.on(ClientEvents.Ready, () => console.log('Ready!'));
+mx.startSync(30000);
+```
+
+---
+
+### .stopSync()
+
+Stops the automatic sync loop. The current in-flight request will complete before the loop exits.
+
+**Returns:** `void`
+
+```js
+mx.stopSync();
 ```
 
 ---
@@ -836,6 +889,45 @@ Emits a named event, invoking all registered listeners.
 | `...args` | `any` | Arguments forwarded to each listener |
 
 **Returns:** `void`
+
+---
+
+### ClientEvents
+
+A string constants object for all events emitted by the client. Use these with `.on()` instead of raw strings to avoid typos and benefit from editor autocompletion.
+
+```js
+import MxjsClient, { ClientEvents } from '@litruv/mxjs-lite';
+
+mx.on(ClientEvents.MessageCreate, ({ roomId, event }) => { /* ... */ });
+mx.on(ClientEvents.Ready, () => { /* ... */ });
+```
+
+| Constant | Value |
+|---|---|
+| `ClientEvents.Connect` | `'connect'` |
+| `ClientEvents.Disconnect` | `'disconnect'` |
+| `ClientEvents.Ready` | `'ready'` |
+| `ClientEvents.MessageCreate` | `'messageCreate'` |
+| `ClientEvents.MessageUpdate` | `'messageUpdate'` |
+| `ClientEvents.MessageDelete` | `'messageDelete'` |
+| `ClientEvents.ReactionAdd` | `'reactionAdd'` |
+| `ClientEvents.RoomJoin` | `'roomJoin'` |
+| `ClientEvents.RoomLeave` | `'roomLeave'` |
+| `ClientEvents.InviteReceive` | `'inviteReceive'` |
+| `ClientEvents.MemberUpdate` | `'memberUpdate'` |
+| `ClientEvents.RoomNameUpdate` | `'roomNameUpdate'` |
+| `ClientEvents.RoomTopicUpdate` | `'roomTopicUpdate'` |
+| `ClientEvents.RoomAvatarUpdate` | `'roomAvatarUpdate'` |
+| `ClientEvents.TypingStart` | `'typingStart'` |
+| `ClientEvents.PresenceUpdate` | `'presenceUpdate'` |
+| `ClientEvents.ReceiptUpdate` | `'receiptUpdate'` |
+| `ClientEvents.AccountDataUpdate` | `'accountDataUpdate'` |
+| `ClientEvents.RoomAccountDataUpdate` | `'roomAccountDataUpdate'` |
+| `ClientEvents.SyncComplete` | `'syncComplete'` |
+| `ClientEvents.SyncError` | `'syncError'` |
+| `ClientEvents.PowerLevelUpdate` | `'powerLevelUpdate'` |
+| `ClientEvents.CanonicalAliasUpdate` | `'canonicalAliasUpdate'` |
 
 ---
 
@@ -1082,7 +1174,7 @@ mx.on('disconnect', () => {
 
 ---
 
-### Event: edit
+### Event: messageUpdate
 
 Emitted by `processSyncData` when a message is edited.
 
@@ -1094,14 +1186,14 @@ Emitted by `processSyncData` when a message is edited.
 | `event` | `Object` | The raw Matrix edit event |
 
 ```js
-mx.on('edit', ({ roomId, edits, newBody }) => {
+mx.on(ClientEvents.MessageUpdate, ({ roomId, edits, newBody }) => {
     console.log(`Message ${edits} edited to: ${newBody}`);
 });
 ```
 
 ---
 
-### Event: invite
+### Event: inviteReceive
 
 Emitted by `processSyncData` when the client receives a room invitation.
 
@@ -1110,7 +1202,7 @@ Emitted by `processSyncData` when the client receives a room invitation.
 | `roomId` | `string` | ID of the room the invite is for |
 
 ```js
-mx.on('invite', ({ roomId }) => {
+mx.on(ClientEvents.InviteReceive, ({ roomId }) => {
     console.log(`Invited to ${roomId}`);
 });
 ```
@@ -1128,7 +1220,7 @@ Emitted by `processSyncData` for each `m.room.member` event in the timeline. `ch
 | `event` | `Object` | The raw Matrix event |
 
 ```js
-mx.on('memberUpdate', ({ roomId, change }) => {
+mx.on(ClientEvents.MemberUpdate, ({ roomId, change }) => {
     if (change.type === 'rename') {
         console.log(`${change.userId} changed name from ${change.prevDisplayName} to ${change.displayName}`);
     } else {
@@ -1141,7 +1233,7 @@ mx.on('memberUpdate', ({ roomId, change }) => {
 
 ### Event: mention
 
-Emitted when an incoming message event contains a reference to the current user's ID. This event is not emitted by `processSyncData`; emit it manually inside your `message` handler using `isMention`.
+Emitted when an incoming message event contains a reference to the current user's ID. This event is not emitted by `processSyncData`; emit it manually inside your `messageCreate` handler using `isMention`.
 
 | Property | Type | Description |
 |---|---|---|
@@ -1150,7 +1242,7 @@ Emitted when an incoming message event contains a reference to the current user'
 | `room` | `Object` | The room object from your local state |
 
 ```js
-mx.on('message', ({ roomId, event }) => {
+mx.on(ClientEvents.MessageCreate, ({ roomId, event }) => {
     if (mx.isMention(event, mx.userId)) {
         mx.emit('mention', { roomId, event, room: myRooms.get(roomId) });
     }
@@ -1163,7 +1255,7 @@ mx.on('mention', ({ roomId, event }) => {
 
 ---
 
-### Event: message
+### Event: messageCreate
 
 Emitted by `processSyncData` for each new (non-edit) `m.room.message` event.
 
@@ -1173,14 +1265,14 @@ Emitted by `processSyncData` for each new (non-edit) `m.room.message` event.
 | `event` | `Object` | The raw Matrix message event |
 
 ```js
-mx.on('message', ({ roomId, event }) => {
+mx.on(ClientEvents.MessageCreate, ({ roomId, event }) => {
     console.log(`[${roomId}] ${event.sender}: ${event.content.body}`);
 });
 ```
 
 ---
 
-### Event: redaction
+### Event: messageDelete
 
 Emitted by `processSyncData` when an event is redacted (deleted).
 
@@ -1191,14 +1283,14 @@ Emitted by `processSyncData` when an event is redacted (deleted).
 | `event` | `Object` | The raw Matrix redaction event |
 
 ```js
-mx.on('redaction', ({ roomId, redacts, event }) => {
+mx.on(ClientEvents.MessageDelete, ({ roomId, redacts, event }) => {
     console.log(`Message ${redacts} was deleted by ${event.sender}`);
 });
 ```
 
 ---
 
-### Event: roomAvatarChange
+### Event: roomAvatarUpdate
 
 Emitted by `processSyncData` when a room's avatar is changed.
 
@@ -1210,7 +1302,7 @@ Emitted by `processSyncData` when a room's avatar is changed.
 | `event` | `Object` | The raw Matrix state event |
 
 ```js
-mx.on('roomAvatarChange', ({ roomId, avatarUrl }) => {
+mx.on(ClientEvents.RoomAvatarUpdate, ({ roomId, avatarUrl }) => {
     console.log(`Room avatar changed to ${avatarUrl}`);
 });
 ```
@@ -1226,7 +1318,7 @@ Emitted by `processSyncData` the first time a room appears in a sync response (i
 | `roomId` | `string` | ID of the newly joined room |
 
 ```js
-mx.on('roomJoin', ({ roomId }) => {
+mx.on(ClientEvents.RoomJoin, ({ roomId }) => {
     console.log(`Joined room ${roomId}`);
 });
 ```
@@ -1242,14 +1334,14 @@ Emitted by `processSyncData` when the client has left or been removed from a roo
 | `roomId` | `string` | ID of the room that was left |
 
 ```js
-mx.on('roomLeave', ({ roomId }) => {
+mx.on(ClientEvents.RoomLeave, ({ roomId }) => {
     console.log(`Left room ${roomId}`);
 });
 ```
 
 ---
 
-### Event: roomNameChange
+### Event: roomNameUpdate
 
 Emitted by `processSyncData` when a room's name is changed.
 
@@ -1261,14 +1353,14 @@ Emitted by `processSyncData` when a room's name is changed.
 | `event` | `Object` | The raw Matrix state event |
 
 ```js
-mx.on('roomNameChange', ({ roomId, name, prevName }) => {
+mx.on(ClientEvents.RoomNameUpdate, ({ roomId, name, prevName }) => {
     console.log(`Room name changed from "${prevName}" to "${name}"`);
 });
 ```
 
 ---
 
-### Event: roomTopicChange
+### Event: roomTopicUpdate
 
 Emitted by `processSyncData` when a room's topic is changed.
 
@@ -1280,14 +1372,14 @@ Emitted by `processSyncData` when a room's topic is changed.
 | `event` | `Object` | The raw Matrix state event |
 
 ```js
-mx.on('roomTopicChange', ({ roomId, topic, prevTopic }) => {
+mx.on(ClientEvents.RoomTopicUpdate, ({ roomId, topic, prevTopic }) => {
     console.log(`Room topic changed from "${prevTopic}" to "${topic}"`);
 });
 ```
 
 ---
 
-### Event: typing
+### Event: typingStart
 
 Emitted by `processSyncData` whenever the set of typing users in a room changes.
 
@@ -1297,8 +1389,177 @@ Emitted by `processSyncData` whenever the set of typing users in a room changes.
 | `userIds` | `string[]` | Current list of typing user IDs |
 
 ```js
-mx.on('typing', ({ roomId, userIds }) => {
+mx.on(ClientEvents.TypingStart, ({ roomId, userIds }) => {
     console.log(`${userIds.join(', ')} is typing in ${roomId}`);
+});
+```
+
+---
+
+### Event: ready
+
+Emitted by [`startSync()`](#startsynctimeout-since) once after the initial drain sync completes. All rooms the client belongs to will have already emitted `roomJoin` by the time `ready` fires. No payload.
+
+```js
+mx.on(ClientEvents.Ready, () => {
+    console.log('Sync ready, rooms populated');
+});
+```
+
+---
+
+### Event: reactionAdd
+
+Emitted by `processSyncData` when a reaction annotation is added to a message.
+
+| Property | Type | Description |
+|---|---|---|
+| `roomId` | `string` | ID of the room |
+| `reacts` | `string` | Event ID of the message that was reacted to |
+| `key` | `string` | Reaction key, typically an emoji |
+| `event` | `Object` | The raw Matrix reaction event |
+
+```js
+mx.on(ClientEvents.ReactionAdd, ({ roomId, reacts, key }) => {
+    console.log(`Reaction ${key} added to ${reacts} in ${roomId}`);
+});
+```
+
+---
+
+### Event: presenceUpdate
+
+Emitted by `processSyncData` when a presence update is received for any user.
+
+| Property | Type | Description |
+|---|---|---|
+| `userId` | `string` | The user whose presence changed |
+| `presence` | `string\|null` | e.g. `"online"`, `"offline"`, `"unavailable"` |
+| `lastActiveAgo` | `number\|null` | Milliseconds since last active |
+| `statusMsg` | `string\|null` | Optional status message |
+| `currentlyActive` | `boolean\|null` | Whether the user is currently active |
+
+```js
+mx.on(ClientEvents.PresenceUpdate, ({ userId, presence }) => {
+    console.log(`${userId} is now ${presence}`);
+});
+```
+
+---
+
+### Event: receiptUpdate
+
+Emitted by `processSyncData` when read receipts arrive for a room.
+
+| Property | Type | Description |
+|---|---|---|
+| `roomId` | `string` | ID of the room |
+| `receipts` | `Array<{ eventId: string, read: string[] }>` | Array of receipt entries |
+
+```js
+mx.on(ClientEvents.ReceiptUpdate, ({ roomId, receipts }) => {
+    for (const { eventId, read } of receipts) {
+        console.log(`${eventId} read by: ${read.join(', ')}`);
+    }
+});
+```
+
+---
+
+### Event: syncComplete
+
+Emitted by [`startSync()`](#startsynctimeout-since) after every successful long-poll cycle. No payload.
+
+```js
+mx.on(ClientEvents.SyncComplete, () => {
+    console.log('Sync cycle complete');
+});
+```
+
+---
+
+### Event: syncError
+
+Emitted by [`startSync()`](#startsynctimeout-since) when a sync request fails. The loop retries after 5 seconds.
+
+| Property | Type | Description |
+|---|---|---|
+| `error` | `Error` | The caught error |
+
+```js
+mx.on(ClientEvents.SyncError, ({ error }) => {
+    console.error('Sync failed:', error);
+});
+```
+
+---
+
+### Event: powerLevelUpdate
+
+Emitted by `processSyncData` when a room's power levels change (`m.room.power_levels`).
+
+| Property | Type | Description |
+|---|---|---|
+| `roomId` | `string` | ID of the room |
+| `content` | `Object` | New power levels content |
+| `event` | `Object` | The raw Matrix state event |
+
+```js
+mx.on(ClientEvents.PowerLevelUpdate, ({ roomId, content }) => {
+    console.log(`Power levels updated in ${roomId}`);
+});
+```
+
+---
+
+### Event: canonicalAliasUpdate
+
+Emitted by `processSyncData` when a room's canonical alias changes (`m.room.canonical_alias`).
+
+| Property | Type | Description |
+|---|---|---|
+| `roomId` | `string` | ID of the room |
+| `alias` | `string\|null` | New canonical alias, or `null` if removed |
+| `event` | `Object` | The raw Matrix state event |
+
+```js
+mx.on(ClientEvents.CanonicalAliasUpdate, ({ roomId, alias }) => {
+    console.log(`Room ${roomId} canonical alias is now ${alias}`);
+});
+```
+
+---
+
+### Event: accountDataUpdate
+
+Emitted by `processSyncData` when a global account data event is received.
+
+| Property | Type | Description |
+|---|---|---|
+| `type` | `string` | Matrix event type, e.g. `"m.push_rules"` |
+| `content` | `Object` | Event content |
+
+```js
+mx.on(ClientEvents.AccountDataUpdate, ({ type, content }) => {
+    console.log(`Global account data updated: ${type}`);
+});
+```
+
+---
+
+### Event: roomAccountDataUpdate
+
+Emitted by `processSyncData` when a room-level account data event is received.
+
+| Property | Type | Description |
+|---|---|---|
+| `roomId` | `string` | ID of the room |
+| `type` | `string` | Matrix event type, e.g. `"m.fully_read"` |
+| `content` | `Object` | Event content |
+
+```js
+mx.on(ClientEvents.RoomAccountDataUpdate, ({ roomId, type, content }) => {
+    console.log(`Room ${roomId} account data updated: ${type}`);
 });
 ```
 ## Testing

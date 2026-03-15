@@ -6,6 +6,7 @@ import { Rooms } from './src/rooms.js';
 import { Events } from './src/events.js';
 import { Receipts } from './src/receipts.js';
 import { Sync } from './src/sync.js';
+import { SyncLoop } from './src/SyncLoop.js';
 import { Media } from './src/media.js';
 import { Html } from './src/html.js';
 import { Capabilities } from './src/capabilities.js';
@@ -15,11 +16,13 @@ import { Search } from './src/search.js';
 import { Devices } from './src/devices.js';
 import { VoIP } from './src/voip.js';
 import { Push } from './src/push.js';
+export { ClientEvents } from './src/ClientEvents.js';
 
 const mixins = [
   Html,
   Media,
   Sync,
+  SyncLoop,
   Receipts,
   Events,
   Rooms,
@@ -41,8 +44,21 @@ const mixins = [
  * Composed from categorised mixins:
  * {@link Auth}, {@link Profile}, {@link Directory},
  * {@link Rooms}, {@link Events}, {@link Receipts},
- * {@link Sync}, {@link Media}, {@link Html}, {@link Capabilities},
+ * {@link Sync}, {@link SyncLoop}, {@link Media}, {@link Html}, {@link Capabilities},
  * {@link Filter}, {@link AccountData}, {@link Search}, {@link Devices}, {@link VoIP}, {@link Push}.
+ *
+ * All emitted event names are available as string constants on {@link ClientEvents}.
+ *
+ * @example
+ * import MxjsClient, { ClientEvents } from 'mxjs-lite';
+ *
+ * const client = new MxjsClient({ homeserver: 'https://matrix.org' });
+ * client.on(ClientEvents.Ready, () => console.log('ready'));
+ * client.on(ClientEvents.MessageCreate, ({ roomId, event }) => {
+ *   console.log(event.content?.body);
+ * });
+ * await client.login('user', 'pass');
+ * client.startSync();
  */
 export class MxjsClient extends mixins.reduce((Base, mixin) => mixin(Base), BaseMxjsClient) {}
 
