@@ -44,5 +44,6 @@
     "rollup": "^4.59.0",
     "terser": "^5.46.0",
     "vitest": "^4.1.0"
-  }
+  },
+  "unpkg": "./dist/mxjs-lite.min.js"
 }
