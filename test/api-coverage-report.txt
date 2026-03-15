@@ -4,14 +4,15 @@
 ╚═══════════════════════════════════════════════════════╝
 
 📊 Total Endpoints Tested: 146
-✅ Fully Implemented: 35 (23.97%)
+✅ Fully Implemented: 36 (24.66%)
 ⚠️  Restricted/Server Limitation: 0
 🔶 Partially Implemented: 0
-❌ Not Implemented: 111
+❌ Not Implemented: 110
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-┌─ Authentication & Account Management (8/22 — 36%)
+┌─ Authentication & Account Management (9/22 — 41%)
+│  ✓ GET /versions
 │  ✓ POST /register
 │  ✓ POST /register?kind=guest
 │  ✓ GET /register/available
@@ -20,7 +21,6 @@
 │  ✓ POST /account/password
 │  ✓ POST /account/deactivate
 │  ✓ GET /account/whoami
-│  ✗ GET /versions
 │  ✗ POST /login
 │  ✗ POST /logout/all
 │  ✗ POST /refresh

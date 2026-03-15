@@ -134,4 +134,21 @@ export const Auth = (Base) => class extends Base {
       return false;
     }
   }
+
+  /**
+   * Fetches the Matrix spec versions supported by the homeserver.
+   * @returns {Promise<{versions: string[]}|null>} Object containing versions array, or null on failure.
+   */
+  async getVersions() {
+    try {
+      const url = `${this.homeserver}/_matrix/client/versions`;
+      const response = await fetch(url);
+      const data = await response.json();
+      if (data.errcode) throw new Error(data.error || data.errcode);
+      return data;
+    } catch (e) {
+      cerr("versions:", e);
+      return null;
+    }
+  }
 };

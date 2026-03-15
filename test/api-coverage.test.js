@@ -99,7 +99,7 @@ describe('Complete Matrix Client-Server API Coverage', () => {
     it('GET /versions - should get supported versions', async () => {
       let implemented = false;
       try {
-        const result = await client.api('/versions', 'GET');
+        const result = await client.getVersions();
         implemented = result?.versions?.length > 0;
       } catch (e) {}
       recordResult('GET /versions', implemented);
