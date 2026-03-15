@@ -67,6 +67,14 @@ export const ClientEvents = {
    */
   ReactionAdd: 'reactionAdd',
 
+  /**
+   * Emitted when a reaction is removed (the reaction event is redacted).
+   * Payload: `{ roomId: string, reacts: string, key: string, event: Object }`
+   * - `reacts` — event ID of the message the reaction was on.
+   * - `key` — the reaction key that was removed.
+   */
+  ReactionRemove: 'reactionRemove',
+
   // ── Room lifecycle ───────────────────────────────────────────────────────
 
   /**
@@ -117,10 +125,16 @@ export const ClientEvents = {
   // ── User activity ────────────────────────────────────────────────────────
 
   /**
-   * Emitted when the set of typing users in a room changes.
-   * Payload: `{ roomId: string, userIds: string[] }`
+   * Emitted when users begin typing in a room.
+   * Payload: `{ roomId: string, userIds: string[] }` — only the users who *started* typing this cycle.
    */
   TypingStart: 'typingStart',
+
+  /**
+   * Emitted when users stop typing in a room.
+   * Payload: `{ roomId: string, userIds: string[] }` — only the users who *stopped* typing this cycle.
+   */
+  TypingEnd: 'typingEnd',
 
   /**
    * Emitted when a user presence event arrives via sync.

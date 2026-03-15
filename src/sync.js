@@ -52,11 +52,13 @@ export const Sync = (Base) => class extends Base {
    * - `messageUpdate` `{ roomId, edits, newBody, event }` — a message was edited.
    * - `messageDelete` `{ roomId, redacts, event }` — an event was redacted.
    * - `reactionAdd` `{ roomId, reacts, key, event }` — an `m.reaction` was added.
+   * - `reactionRemove` `{ roomId, reacts, key, event }` — a reaction was removed (its event was redacted).
    * - `memberUpdate` `{ roomId, change, event }` — a membership state change.
    * - `roomNameUpdate` `{ roomId, name, prevName, event }` — room name changed.
    * - `roomTopicUpdate` `{ roomId, topic, prevTopic, event }` — room topic changed.
    * - `roomAvatarUpdate` `{ roomId, avatarUrl, prevAvatarUrl, event }` — room avatar changed.
-   * - `typingStart` `{ roomId, userIds }` — typing user set changed.
+   * - `typingStart` `{ roomId, userIds }` — users who started typing this cycle.
+   * - `typingEnd` `{ roomId, userIds }` — users who stopped typing this cycle.
    * - `receiptUpdate` `{ roomId, receipts }` — read receipts arrived.
    * - `roomAccountDataUpdate` `{ roomId, type, content }` — room account data changed.
    * - `presenceUpdate` `{ userId, presence, lastActiveAgo, statusMsg, currentlyActive }` — user presence changed.
@@ -84,7 +86,11 @@ export const Sync = (Base) => class extends Base {
         }
         if (event.type === M_REACT) {
           const rel = event.content?.[M_REL];
-          if (rel) this.emit('reactionAdd', { roomId, reacts: rel.event_id, key: rel.key, event });
+          if (rel) {
+            this._reactionCache ??= new Map();
+            this._reactionCache.set(event.event_id, { roomId, reacts: rel.event_id, key: rel.key });
+            this.emit('reactionAdd', { roomId, reacts: rel.event_id, key: rel.key, event });
+          }
         }
         if (event.type === M_MEMBER) {
           const change = this.getMembershipChange(event);
@@ -118,7 +124,13 @@ export const Sync = (Base) => class extends Base {
           });
         }
         if (event.type === M_REDACTION) {
-          this.emit('messageDelete', { roomId, redacts: event.redacts, event });
+          const cached = this._reactionCache?.get(event.redacts);
+          if (cached) {
+            this._reactionCache.delete(event.redacts);
+            this.emit('reactionRemove', { roomId: cached.roomId, reacts: cached.reacts, key: cached.key, event });
+          } else {
+            this.emit('messageDelete', { roomId, redacts: event.redacts, event });
+          }
         }
         if (event.type === M_PLEVEL) {
           this.emit('powerLevelUpdate', { roomId, content: event.content, event });
@@ -130,7 +142,14 @@ export const Sync = (Base) => class extends Base {
 
       for (const event of roomData.ephemeral?.events ?? []) {
         if (event.type === 'm.typing') {
-          this.emit('typingStart', { roomId, userIds: event.content?.user_ids ?? [] });
+          const current = new Set(event.content?.user_ids ?? []);
+          this._typingCache ??= new Map();
+          const prev = this._typingCache.get(roomId) ?? new Set();
+          const started = [...current].filter(id => !prev.has(id));
+          const stopped = [...prev].filter(id => !current.has(id));
+          this._typingCache.set(roomId, current);
+          if (started.length) this.emit('typingStart', { roomId, userIds: started });
+          if (stopped.length) this.emit('typingEnd', { roomId, userIds: stopped });
         }
         if (event.type === 'm.receipt') {
           const receipts = Object.entries(event.content ?? {}).map(([eventId, readers]) => ({

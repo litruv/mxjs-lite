@@ -158,6 +158,7 @@ new MxjsClient([options])
 [powerLevelUpdate](#event-powerlevelupdate)  
 [presenceUpdate](#event-presenceupdate)  
 [reactionAdd](#event-reactionadd)  
+[reactionRemove](#event-reactionremove)  
 [ready](#event-ready)  
 [receiptUpdate](#event-receiptupdate)  
 [roomAccountDataUpdate](#event-roomaccountdataupdate)  
@@ -168,7 +169,8 @@ new MxjsClient([options])
 [roomTopicUpdate](#event-roomtopicupdate)  
 [syncComplete](#event-synccomplete)  
 [syncError](#event-syncerror)  
-[typingStart](#event-typingstart)
+[typingStart](#event-typingstart)  
+[typingEnd](#event-typingend)
 
 ### Event Helpers
 
@@ -797,7 +799,7 @@ while (true) {
 
 ### .processSyncData(data)
 
-Processes a raw sync response and emits structured events for all new activity. Called automatically by [`startSync()`](#startsynctimeout-since), or call manually after each `.sync()` poll. Emits `roomJoin`, `roomLeave`, `inviteReceive`, `messageCreate`, `messageUpdate`, `messageDelete`, `reactionAdd`, `memberUpdate`, `typingStart`, `receiptUpdate`, `roomNameUpdate`, `roomTopicUpdate`, `roomAvatarUpdate`, `powerLevelUpdate`, `canonicalAliasUpdate`, `presenceUpdate`, `accountDataUpdate`, `roomAccountDataUpdate` — see [Event Details](#event-details) for payload shapes.
+Processes a raw sync response and emits structured events for all new activity. Called automatically by [`startSync()`](#startsynctimeout-since), or call manually after each `.sync()` poll. Emits `roomJoin`, `roomLeave`, `inviteReceive`, `messageCreate`, `messageUpdate`, `messageDelete`, `reactionAdd`, `reactionRemove`, `memberUpdate`, `typingStart`, `typingEnd`, `receiptUpdate`, `roomNameUpdate`, `roomTopicUpdate`, `roomAvatarUpdate`, `powerLevelUpdate`, `canonicalAliasUpdate`, `presenceUpdate`, `accountDataUpdate`, `roomAccountDataUpdate` — see [Event Details](#event-details) for payload shapes.
 
 | Parameter | Type | Description |
 |---|---|---|
@@ -912,6 +914,7 @@ mx.on(ClientEvents.Ready, () => { /* ... */ });
 | `ClientEvents.MessageUpdate` | `'messageUpdate'` |
 | `ClientEvents.MessageDelete` | `'messageDelete'` |
 | `ClientEvents.ReactionAdd` | `'reactionAdd'` |
+| `ClientEvents.ReactionRemove` | `'reactionRemove'` |
 | `ClientEvents.RoomJoin` | `'roomJoin'` |
 | `ClientEvents.RoomLeave` | `'roomLeave'` |
 | `ClientEvents.InviteReceive` | `'inviteReceive'` |
@@ -920,6 +923,7 @@ mx.on(ClientEvents.Ready, () => { /* ... */ });
 | `ClientEvents.RoomTopicUpdate` | `'roomTopicUpdate'` |
 | `ClientEvents.RoomAvatarUpdate` | `'roomAvatarUpdate'` |
 | `ClientEvents.TypingStart` | `'typingStart'` |
+| `ClientEvents.TypingEnd` | `'typingEnd'` |
 | `ClientEvents.PresenceUpdate` | `'presenceUpdate'` |
 | `ClientEvents.ReceiptUpdate` | `'receiptUpdate'` |
 | `ClientEvents.AccountDataUpdate` | `'accountDataUpdate'` |
@@ -1381,16 +1385,33 @@ mx.on(ClientEvents.RoomTopicUpdate, ({ roomId, topic, prevTopic }) => {
 
 ### Event: typingStart
 
-Emitted by `processSyncData` whenever the set of typing users in a room changes.
+Emitted by `processSyncData` when users begin typing in a room. `userIds` contains only the users who *started* typing this cycle, not the full typing set.
 
 | Property | Type | Description |
 |---|---|---|
 | `roomId` | `string` | ID of the room |
-| `userIds` | `string[]` | Current list of typing user IDs |
+| `userIds` | `string[]` | User IDs who started typing |
 
 ```js
 mx.on(ClientEvents.TypingStart, ({ roomId, userIds }) => {
-    console.log(`${userIds.join(', ')} is typing in ${roomId}`);
+    console.log(`${userIds.join(', ')} started typing in ${roomId}`);
+});
+```
+
+---
+
+### Event: typingEnd
+
+Emitted by `processSyncData` when users stop typing in a room. `userIds` contains only the users who *stopped* typing this cycle.
+
+| Property | Type | Description |
+|---|---|---|
+| `roomId` | `string` | ID of the room |
+| `userIds` | `string[]` | User IDs who stopped typing |
+
+```js
+mx.on(ClientEvents.TypingEnd, ({ roomId, userIds }) => {
+    console.log(`${userIds.join(', ')} stopped typing in ${roomId}`);
 });
 ```
 
@@ -1422,6 +1443,25 @@ Emitted by `processSyncData` when a reaction annotation is added to a message.
 ```js
 mx.on(ClientEvents.ReactionAdd, ({ roomId, reacts, key }) => {
     console.log(`Reaction ${key} added to ${reacts} in ${roomId}`);
+});
+```
+
+---
+
+### Event: reactionRemove
+
+Emitted by `processSyncData` when a reaction is removed (the reaction event is redacted). The library tracks seen reaction event IDs automatically so this fires instead of `messageDelete` for reaction removals.
+
+| Property | Type | Description |
+|---|---|---|
+| `roomId` | `string` | ID of the room |
+| `reacts` | `string` | Event ID of the message the reaction was on |
+| `key` | `string` | The reaction key that was removed |
+| `event` | `Object` | The raw Matrix redaction event |
+
+```js
+mx.on(ClientEvents.ReactionRemove, ({ roomId, reacts, key }) => {
+    console.log(`Reaction ${key} removed from ${reacts} in ${roomId}`);
 });
 ```
 
