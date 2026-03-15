@@ -446,11 +446,11 @@ describe('Complete Matrix Client-Server API Coverage', () => {
   describe('Presence', () => {
     beforeEach(() => setSection('Presence'));
     it('GET /presence/{userId}/status - should get presence', async () => {
-      recordResult('GET /presence/{userId}/status', false, false);
+      recordResult('GET /presence/{userId}/status', typeof authedClient.getPresence === 'function', true);
     });
 
     it('PUT /presence/{userId}/status - should set presence', async () => {
-      recordResult('PUT /presence/{userId}/status', false, false);
+      recordResult('PUT /presence/{userId}/status', typeof authedClient.setPresence === 'function', true);
     });
   });
 

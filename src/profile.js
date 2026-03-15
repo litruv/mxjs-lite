@@ -78,4 +78,48 @@ export const Profile = (Base) => class extends Base {
       return null;
     }
   }
+
+  /**
+   * Gets the presence status of a user.
+   * @param {string} userId - The user ID to check.
+   * @returns {Promise<{presence: string, lastActive: number, currentlyActive: boolean, statusMsg: string|null}|null>}
+   */
+  async getPresence(userId) {
+    try {
+      const data = await this.api(`/presence/${enc(userId)}/status`);
+      return data.errcode
+        ? null
+        : {
+            presence: data.presence,
+            lastActive: data.last_active_ago || 0,
+            currentlyActive: data.currently_active || false,
+            statusMsg: data.status_msg || null,
+          };
+    } catch (e) {
+      cerr("get presence:", e);
+      return null;
+    }
+  }
+
+  /**
+   * Sets the presence status for the current user.
+   * @param {string} presence - The presence state: "online", "offline", or "unavailable".
+   * @param {string|null} [statusMsg=null] - Optional status message.
+   * @returns {Promise<boolean>} `true` on success.
+   */
+  async setPresence(presence, statusMsg = null) {
+    try {
+      const body = { presence };
+      if (statusMsg) body.status_msg = statusMsg;
+      const result = await this.api(
+        `/presence/${enc(this.userId)}/status`,
+        "PUT",
+        body,
+      );
+      return !result.errcode;
+    } catch (e) {
+      cerr("set presence:", e);
+      return false;
+    }
+  }
 };
