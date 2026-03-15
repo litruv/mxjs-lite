@@ -131,7 +131,8 @@ describe('Complete Matrix Client-Server API Coverage', () => {
       let implemented = false;
       try {
         const tmpClient = new MxjsClient({ homeserver: HOMESERVER });
-        implemented = !!(await tmpClient.login(authedClient.userId.match(/:(.+)$/)?.[0]?.slice(1), testPassword));
+        const username = authedClient.userId.split(':')[0].slice(1); // Extract username from @username:homeserver
+        implemented = !!(await tmpClient.login(username, testPassword));
       } catch (e) {}
       recordResult('POST /login', implemented);
     }, TEST_TIMEOUT);
@@ -219,8 +220,13 @@ describe('Complete Matrix Client-Server API Coverage', () => {
   describe('Capabilities', () => {
     beforeEach(() => setSection('Capabilities'));
     it('GET /capabilities - should get server capabilities', async () => {
-      recordResult('GET /capabilities', false, false);
-    });
+      let implemented = false;
+      try {
+        const result = await authedClient.getCapabilities();
+        implemented = result?.capabilities !== undefined;
+      } catch (e) {}
+      recordResult('GET /capabilities', implemented);
+    }, TEST_TIMEOUT);
   });
 
   describe('Filter API', () => {
