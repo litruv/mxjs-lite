@@ -1,0 +1,213 @@
+
+╔═══════════════════════════════════════════════════════╗
+║     MATRIX CLIENT-SERVER API COVERAGE REPORT          ║
+╚═══════════════════════════════════════════════════════╝
+
+📊 Total Endpoints Tested: 146
+✅ Fully Implemented: 35 (23.97%)
+⚠️  Restricted/Server Limitation: 0
+🔶 Partially Implemented: 0
+❌ Not Implemented: 111
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+┌─ Authentication & Account Management (8/22 — 36%)
+│  ✓ POST /register
+│  ✓ POST /register?kind=guest
+│  ✓ GET /register/available
+│  ✓ GET /login
+│  ✓ POST /logout
+│  ✓ POST /account/password
+│  ✓ POST /account/deactivate
+│  ✓ GET /account/whoami
+│  ✗ GET /versions
+│  ✗ POST /login
+│  ✗ POST /logout/all
+│  ✗ POST /refresh
+│  ✗ POST /account/password/email/requestToken
+│  ✗ POST /account/password/msisdn/requestToken
+│  ✗ GET /account/3pid
+│  ✗ POST /account/3pid
+│  ✗ POST /account/3pid/add
+│  ✗ POST /account/3pid/bind
+│  ✗ POST /account/3pid/delete
+│  ✗ POST /account/3pid/unbind
+│  ✗ POST /account/3pid/email/requestToken
+│  ✗ POST /account/3pid/msisdn/requestToken
+│
+┌─ Capabilities (0/1 — 0%)
+│  ✗ GET /capabilities
+│
+┌─ Filter API (0/2 — 0%)
+│  ✗ POST /user/{userId}/filter
+│  ✗ GET /user/{userId}/filter/{filterId}
+│
+┌─ Events & Sync (1/4 — 25%)
+│  ✓ GET /sync
+│  ✗ GET /events
+│  ✗ GET /events/{eventId}
+│  ✗ GET /initialSync
+│
+┌─ Rooms - Events (6/15 — 40%)
+│  ✓ GET /rooms/{roomId}/state
+│  ✓ GET /rooms/{roomId}/state/{eventType}/{stateKey}
+│  ✓ PUT /rooms/{roomId}/state/{eventType}/{stateKey}
+│  ✓ PUT /rooms/{roomId}/redact/{eventId}/{txnId}
+│  ✓ GET /rooms/{roomId}/messages
+│  ✓ GET /rooms/{roomId}/members
+│  ✗ GET /rooms/{roomId}/event/{eventId}
+│  ✗ PUT /rooms/{roomId}/send/{eventType}/{txnId}
+│  ✗ GET /rooms/{roomId}/joined_members
+│  ✗ GET /rooms/{roomId}/context/{eventId}
+│  ✗ GET /rooms/{roomId}/relations/{eventId}
+│  ✗ GET /rooms/{roomId}/relations/{eventId}/{relType}
+│  ✗ GET /rooms/{roomId}/relations/{eventId}/{relType}/{eventType}
+│  ✗ GET /rooms/{roomId}/timestamp_to_event
+│  ✗ GET /rooms/{roomId}/initialSync
+│
+┌─ Rooms - Management (7/11 — 64%)
+│  ✓ POST /createRoom
+│  ✓ POST /join/{roomIdOrAlias}
+│  ✓ POST /rooms/{roomId}/leave
+│  ✓ POST /rooms/{roomId}/invite
+│  ✓ POST /rooms/{roomId}/kick
+│  ✓ POST /rooms/{roomId}/ban
+│  ✓ POST /rooms/{roomId}/unban
+│  ✗ POST /rooms/{roomId}/join
+│  ✗ POST /knock/{roomIdOrAlias}
+│  ✗ POST /rooms/{roomId}/forget
+│  ✗ POST /rooms/{roomId}/upgrade
+│
+┌─ Room Directory (2/11 — 18%)
+│  ✓ GET /directory/room/{roomAlias}
+│  ✓ GET /publicRooms
+│  ✗ PUT /directory/room/{roomAlias}
+│  ✗ DELETE /directory/room/{roomAlias}
+│  ✗ GET /rooms/{roomId}/aliases
+│  ✗ GET /joined_rooms
+│  ✗ POST /publicRooms
+│  ✗ GET /directory/list/room/{roomId}
+│  ✗ PUT /directory/list/room/{roomId}
+│  ✗ GET /room_summary/{roomIdOrAlias}
+│  ✗ GET /rooms/{roomId}/hierarchy
+│
+┌─ User Directory (0/1 — 0%)
+│  ✗ POST /user_directory/search
+│
+┌─ User Profiles (3/7 — 43%)
+│  ✓ GET /profile/{userId}
+│  ✓ PUT /profile/{userId}/displayname
+│  ✓ PUT /profile/{userId}/avatar_url
+│  ✗ GET /profile/{userId}/displayname
+│  ✗ GET /profile/{userId}/avatar_url
+│  ✗ DELETE /profile/{userId}/displayname
+│  ✗ DELETE /profile/{userId}/avatar_url
+│
+┌─ Presence (0/2 — 0%)
+│  ✗ GET /presence/{userId}/status
+│  ✗ PUT /presence/{userId}/status
+│
+┌─ Typing & Receipts (2/3 — 67%)
+│  ✓ PUT /rooms/{roomId}/typing/{userId}
+│  ✓ POST /rooms/{roomId}/receipt/{receiptType}/{eventId}
+│  ✗ POST /rooms/{roomId}/read_markers
+│
+┌─ Sending Events (Message Types) (4/4 — 100%)
+│  ✓ m.room.message (text)
+│  ✓ m.room.message (image)
+│  ✓ m.reaction
+│  ✓ m.replace (edit)
+│
+┌─ VoIP (0/1 — 0%)
+│  ✗ GET /voip/turnServer
+│
+┌─ Device Management (0/5 — 0%)
+│  ✗ GET /devices
+│  ✗ GET /devices/{deviceId}
+│  ✗ PUT /devices/{deviceId}
+│  ✗ DELETE /devices/{deviceId}
+│  ✗ POST /delete_devices
+│
+┌─ End-to-End Encryption (0/7 — 0%)
+│  ✗ POST /keys/upload
+│  ✗ POST /keys/query
+│  ✗ POST /keys/claim
+│  ✗ GET /keys/changes
+│  ✗ POST /keys/device_signing/upload
+│  ✗ POST /keys/signatures/upload
+│  ✗ PUT /sendToDevice/{eventType}/{txnId}
+│
+┌─ Key Backup (0/14 — 0%)
+│  ✗ POST /room_keys/version
+│  ✗ GET /room_keys/version
+│  ✗ GET /room_keys/version/{version}
+│  ✗ PUT /room_keys/version/{version}
+│  ✗ DELETE /room_keys/version/{version}
+│  ✗ PUT /room_keys/keys
+│  ✗ GET /room_keys/keys
+│  ✗ DELETE /room_keys/keys
+│  ✗ PUT /room_keys/keys/{roomId}
+│  ✗ GET /room_keys/keys/{roomId}
+│  ✗ DELETE /room_keys/keys/{roomId}
+│  ✗ PUT /room_keys/keys/{roomId}/{sessionId}
+│  ✗ GET /room_keys/keys/{roomId}/{sessionId}
+│  ✗ DELETE /room_keys/keys/{roomId}/{sessionId}
+│
+┌─ Push Notifications (0/12 — 0%)
+│  ✗ GET /pushrules/
+│  ✗ GET /pushrules/global/
+│  ✗ GET /pushrules/global/{kind}/{ruleId}
+│  ✗ PUT /pushrules/global/{kind}/{ruleId}
+│  ✗ DELETE /pushrules/global/{kind}/{ruleId}
+│  ✗ GET /pushrules/global/{kind}/{ruleId}/actions
+│  ✗ PUT /pushrules/global/{kind}/{ruleId}/actions
+│  ✗ GET /pushrules/global/{kind}/{ruleId}/enabled
+│  ✗ PUT /pushrules/global/{kind}/{ruleId}/enabled
+│  ✗ GET /pushers
+│  ✗ POST /pushers/set
+│  ✗ GET /notifications
+│
+┌─ Search (0/1 — 0%)
+│  ✗ POST /search
+│
+┌─ Account Data (0/4 — 0%)
+│  ✗ PUT /user/{userId}/account_data/{type}
+│  ✗ GET /user/{userId}/account_data/{type}
+│  ✗ PUT /user/{userId}/rooms/{roomId}/account_data/{type}
+│  ✗ GET /user/{userId}/rooms/{roomId}/account_data/{type}
+│
+┌─ Server Administration (0/1 — 0%)
+│  ✗ GET /admin/whois/{userId}
+│
+┌─ Event Reports (0/3 — 0%)
+│  ✗ POST /rooms/{roomId}/report/{eventId}
+│  ✗ POST /rooms/{roomId}/report
+│  ✗ POST /users/{userId}/report
+│
+┌─ Third-party Networks (0/6 — 0%)
+│  ✗ GET /thirdparty/protocols
+│  ✗ GET /thirdparty/protocol/{protocol}
+│  ✗ GET /thirdparty/location
+│  ✗ GET /thirdparty/location/{protocol}
+│  ✗ GET /thirdparty/user
+│  ✗ GET /thirdparty/user/{protocol}
+│
+┌─ OpenID (0/1 — 0%)
+│  ✗ POST /user/{userId}/openid/request_token
+│
+┌─ SSO (0/2 — 0%)
+│  ✗ GET /login/sso/redirect
+│  ✗ GET /login/sso/redirect/{idpId}
+│
+┌─ Threads (0/1 — 0%)
+│  ✗ GET /rooms/{roomId}/threads
+│
+┌─ Media Repository (2/5 — 40%)
+│  ✓ POST /upload
+│  ✓ GET /download/{serverName}/{mediaId}
+│  ✗ GET /thumbnail/{serverName}/{mediaId}
+│  ✗ GET /preview_url
+│  ✗ GET /config
+│
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

@@ -5,5 +5,4 @@ package-lock.json
 coverage/
 .env
 dist/
-test/api-coverage-report.txt
 .vscode/
