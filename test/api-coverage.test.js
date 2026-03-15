@@ -156,12 +156,11 @@ describe('Complete Matrix Client-Server API Coverage', () => {
     }, TEST_TIMEOUT);
 
     it('POST /logout - should logout', async () => {
-      recordResult('POST /logout', typeof authedClient.logout === 'function', 'partial');
-      // Note: our implementation doesn't call server, just clears local session
+      recordResult('POST /logout', typeof authedClient.logout === 'function', true);
     });
 
     it('POST /logout/all - should logout all devices', async () => {
-      recordResult('POST /logout/all', false, false);
+      recordResult('POST /logout/all', typeof authedClient.logoutAll === 'function', true);
     });
 
     it('POST /refresh - should refresh access token', async () => {

@@ -4,14 +4,14 @@
 ╚═══════════════════════════════════════════════════════╝
 
 📊 Total Endpoints Tested: 142
-✅ Fully Implemented: 46 (32.39%)
+✅ Fully Implemented: 47 (33.10%)
 ⚠️  Restricted/Server Limitation: 0
 🔶 Partially Implemented: 0
-❌ Not Implemented: 96
+❌ Not Implemented: 95
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-┌─ Authentication & Account Management (10/22 — 45%)
+┌─ Authentication & Account Management (11/22 — 50%)
 │  ✓ GET /versions
 │  ✓ POST /register
 │  ✓ POST /register?kind=guest
@@ -19,10 +19,10 @@
 │  ✓ POST /login
 │  ✓ GET /login
 │  ✓ POST /logout
+│  ✓ POST /logout/all
 │  ✓ POST /account/password
 │  ✓ POST /account/deactivate
 │  ✓ GET /account/whoami
-│  ✗ POST /logout/all
 │  ✗ POST /refresh
 │  ✗ POST /account/password/email/requestToken
 │  ✗ POST /account/password/msisdn/requestToken

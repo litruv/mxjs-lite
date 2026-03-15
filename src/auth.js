@@ -76,12 +76,45 @@ export const Auth = (Base) => class extends Base {
 
   /**
    * Clears the locally stored access token and user ID.
+   * @private
    */
-  logout() {
+  _clearSession() {
     this.accessToken = null;
     this.userId = null;
     this._knownRoomIds.clear();
     this.emit('disconnect');
+  }
+
+  /**
+   * Logs out from the current session, invalidating the access token on the server.
+   * @returns {Promise<boolean>} `true` on success.
+   */
+  async logout() {
+    try {
+      await this.api("/logout", "POST", {});
+      this._clearSession();
+      return true;
+    } catch (e) {
+      cerr("logout:", e);
+      this._clearSession(); // Clear local session even if server call fails
+      return false;
+    }
+  }
+
+  /**
+   * Logs out from all sessions, invalidating all access tokens for this user.
+   * @returns {Promise<boolean>} `true` on success.
+   */
+  async logoutAll() {
+    try {
+      await this.api("/logout/all", "POST", {});
+      this._clearSession();
+      return true;
+    } catch (e) {
+      cerr("logoutAll:", e);
+      this._clearSession(); // Clear local session even if server call fails
+      return false;
+    }
   }
 
   /**
@@ -99,7 +132,7 @@ export const Auth = (Base) => class extends Base {
           password,
         },
       }));
-      this.logout();
+      this._clearSession();
       return true;
     } catch (e) {
       cerr("deactivate:", e);
