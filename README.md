@@ -10,6 +10,14 @@ Lightweight Matrix protocol client. Pure ES module, no dependencies.
 npm install @litruv/mxjs-lite
 ```
 
+or import directly into your website
+```html
+<script src="https://unpkg.com/@litruv/mxjs-lite/dist/mxjs-lite.min.js"></script>
+```
+
+### Sample script
+
+
 ```js
 import MxjsClient from '@litruv/mxjs-lite';
 
