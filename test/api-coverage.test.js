@@ -90,8 +90,8 @@ describe('Complete Matrix Client-Server API Coverage', () => {
     
     // Save report to file
     const fs = await import('fs');
-    fs.writeFileSync('api-coverage-report.txt', report, 'utf8');
-    console.log('\n📄 Full report saved to: api-coverage-report.txt\n');
+    fs.writeFileSync('test/api-coverage-report.txt', report, 'utf8');
+    console.log('\n📄 Full report saved to: test/api-coverage-report.txt\n');
   }, TEST_TIMEOUT);
 
   describe('Authentication & Account Management', () => {
