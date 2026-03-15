@@ -12,8 +12,7 @@
   ],
   "scripts": {
     "build": "rollup -c rollup.config.js",
-    "test": "vitest run test/api-coverage.test.js",
-    "posttest": "node test/update-badge.js",
+    "test": "node test/run-tests.js",
     "prepublishOnly": "npm run build"
   },
   "keywords": [

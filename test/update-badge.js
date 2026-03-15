@@ -36,3 +36,9 @@ readme = readme.replace(oldCoverage, newCoverage);
 writeFileSync('README.md', readme, 'utf8');
 
 console.log(`✅ Updated README badge: ${percentage}% (${implemented}/${total} endpoints)`);
+
+// Print final summary
+console.log('\n' + '='.repeat(60));
+console.log(`  API COVERAGE: ${implemented}/${total} endpoints (${percentage}%)`);
+console.log('='.repeat(60));
+
