@@ -4,10 +4,10 @@
 ╚═══════════════════════════════════════════════════════╝
 
 📊 Total Endpoints Tested: 142
-✅ Fully Implemented: 47 (33.10%)
-⚠️  Restricted/Server Limitation: 0
+✅ Fully Implemented: 46 (32.39%)
+⚠️  Restricted/Server Limitation: 2
 🔶 Partially Implemented: 0
-❌ Not Implemented: 95
+❌ Not Implemented: 94
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -61,8 +61,7 @@
 │  ✗ GET /rooms/{roomId}/relations/{eventId}/{relType}/{eventType}
 │  ✗ GET /rooms/{roomId}/timestamp_to_event
 │
-┌─ Rooms - Management (11/11 — 100%)
-│  ✓ POST /createRoom
+┌─ Rooms - Management (10/11 — 91%)
 │  ✓ POST /join/{roomIdOrAlias}
 │  ✓ POST /rooms/{roomId}/join
 │  ✓ POST /knock/{roomIdOrAlias}
@@ -73,6 +72,7 @@
 │  ✓ POST /rooms/{roomId}/ban
 │  ✓ POST /rooms/{roomId}/unban
 │  ✓ POST /rooms/{roomId}/upgrade
+│  ! POST /createRoom
 │
 ┌─ Room Directory (2/11 — 18%)
 │  ✓ GET /directory/room/{roomAlias}
@@ -195,15 +195,15 @@
 │  ✗ GET /login/sso/redirect
 │  ✗ GET /login/sso/redirect/{idpId}
 │
-┌─ Threads (0/1 — 0%)
-│  ✗ GET /rooms/{roomId}/threads
+┌─ Threads (1/1 — 100%)
+│  ✓ GET /rooms/{roomId}/threads
 │
-┌─ Media Repository (5/5 — 100%)
-│  ✓ POST /upload
+┌─ Media Repository (4/5 — 80%)
 │  ✓ GET /download/{serverName}/{mediaId}
 │  ✓ GET /thumbnail/{serverName}/{mediaId}
 │  ✓ GET /preview_url
 │  ✓ GET /config
+│  ! POST /upload
 │
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

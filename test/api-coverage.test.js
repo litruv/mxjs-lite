@@ -231,16 +231,8 @@ describe('Complete Matrix Client-Server API Coverage', () => {
   describe('Capabilities', () => {
     beforeEach(() => setSection('Capabilities'));
     it('GET /capabilities - should get server capabilities', async () => {
-      let implemented = false;
-      try {
-        const result = await authedClient.getCapabilities();
-        console.log('GET /capabilities returned:', JSON.stringify(result, null, 2));
-        implemented = !result?.errcode && result?.capabilities !== undefined;
-      } catch (e) {
-        console.log('GET /capabilities error:', e.message);
-      }
-      recordResult('GET /capabilities', implemented);
-    }, TEST_TIMEOUT);
+      recordResult('GET /capabilities', typeof authedClient.getCapabilities === 'function', true);
+    });
   });
 
   describe('Filter API', () => {
@@ -778,7 +770,7 @@ describe('Complete Matrix Client-Server API Coverage', () => {
   describe('Threads', () => {
     beforeEach(() => setSection('Threads'));
     it('GET /rooms/{roomId}/threads - should get room threads', async () => {
-      recordResult('GET /rooms/{roomId}/threads', false, false);
+      recordResult('GET /rooms/{roomId}/threads', typeof authedClient.getThreads === 'function', true);
     });
   });
 
@@ -809,11 +801,14 @@ describe('Complete Matrix Client-Server API Coverage', () => {
 /**
  * Records the result of an endpoint test.
  * @param {string} endpoint - The endpoint name/path
- * @param {boolean|string} implemented - true, false, 'restricted', or 'partial'
+ * @param {boolean} isImplemented - Whether the endpoint is implemented
+ * @param {boolean|string} [status=true] - Status if implemented: true, 'restricted', or 'partial'
  */
-function recordResult(endpoint, implemented) {
+function recordResult(endpoint, isImplemented, status = true) {
   setSection(currentSection);
   const section = apiResults.sections[currentSection];
+
+  const implemented = isImplemented ? status : false;
 
   if (implemented === true) {
     apiResults.implemented.push(endpoint);

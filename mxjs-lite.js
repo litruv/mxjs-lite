@@ -8,6 +8,7 @@ import { Receipts } from './src/receipts.js';
 import { Sync } from './src/sync.js';
 import { Media } from './src/media.js';
 import { Html } from './src/html.js';
+import { Capabilities } from './src/capabilities.js';
 
 const mixins = [
   Html,
@@ -19,6 +20,7 @@ const mixins = [
   Directory,
   Profile,
   Auth,
+  Capabilities,
 ];
 
 /**
@@ -27,7 +29,7 @@ const mixins = [
  * Composed from categorised mixins:
  * {@link Auth}, {@link Profile}, {@link Directory},
  * {@link Rooms}, {@link Events}, {@link Receipts},
- * {@link Sync}, {@link Media}, {@link Html}.
+ * {@link Sync}, {@link Media}, {@link Html}, {@link Capabilities}.
  */
 export class MxjsClient extends mixins.reduce((Base, mixin) => mixin(Base), BaseMxjsClient) {}
 

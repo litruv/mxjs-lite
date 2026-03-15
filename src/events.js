@@ -291,4 +291,31 @@ export const Events = (Base) => class extends Base {
       return null;
     }
   }
+
+  /**
+   * Gets a list of threads in a room.
+   * @param {string} roomId
+   * @param {object} [options]
+   * @param {string|null} [options.from=null] - Pagination token to start from.
+   * @param {number} [options.limit=50] - Maximum number of thread roots to return.
+   * @param {string} [options.include="all"] - Filter threads: "all" or "participated".
+   * @returns {Promise<{threads: Object[], nextBatch: string|null}|null>}
+   */
+  async getThreads(roomId, { from = null, limit = 50, include = "all" } = {}) {
+    try {
+      const params = new URLSearchParams({ limit: limit.toString(), include });
+      if (from) params.set("from", from);
+      const endpoint = `/rooms/${roomId}/threads?${params.toString()}`;
+      const result = await this.api(endpoint);
+      return result.errcode
+        ? null
+        : {
+            threads: result.chunk || [],
+            nextBatch: result.next_batch || null,
+          };
+    } catch (e) {
+      cerr("threads:", e);
+      return null;
+    }
+  }
 };
