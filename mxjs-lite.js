@@ -846,7 +846,10 @@ export class MxjsClient {
    * - `message` `{ roomId, event }` — a new (non-edit) `m.room.message` event.
    * - `edit` `{ roomId, edits, newBody, event }` — a message was edited; `edits` is the event ID of the original message, `newBody` is the new text.
    * - `memberUpdate` `{ roomId, change, event }` — a membership change; `change` is the
-   *   object returned by {@link getMembershipChange}.
+   *   object returned by {@link getMembershipChange}. For display name changes, `change.type` will be `"rename"`.
+   * - `roomNameChange` `{ roomId, name, prevName, event }` — the room name was changed.
+   * - `roomTopicChange` `{ roomId, topic, prevTopic, event }` — the room topic was changed.
+   * - `roomAvatarChange` `{ roomId, avatarUrl, prevAvatarUrl, event }` — the room avatar was changed.
    * - `redaction` `{ roomId, redacts, event }` — an event was redacted (deleted); `redacts` is the event ID that was deleted.
    * - `typing` `{ roomId, userIds }` — the current set of typing users in a room changed.
    *
@@ -873,6 +876,33 @@ export class MxjsClient {
         if (event.type === M_MEMBER) {
           const change = this.getMembershipChange(event);
           if (change) this.emit('memberUpdate', { roomId, change, event });
+        }
+        if (event.type === M_RNAME) {
+          const prevContent = this.getPrevContent(event);
+          this.emit('roomNameChange', {
+            roomId,
+            name: event.content?.name ?? null,
+            prevName: prevContent?.name ?? null,
+            event
+          });
+        }
+        if (event.type === M_RTOPIC) {
+          const prevContent = this.getPrevContent(event);
+          this.emit('roomTopicChange', {
+            roomId,
+            topic: event.content?.topic ?? null,
+            prevTopic: prevContent?.topic ?? null,
+            event
+          });
+        }
+        if (event.type === M_RAVATAR) {
+          const prevContent = this.getPrevContent(event);
+          this.emit('roomAvatarChange', {
+            roomId,
+            avatarUrl: event.content?.url ?? null,
+            prevAvatarUrl: prevContent?.url ?? null,
+            event
+          });
         }
         if (event.type === M_REDACTION) {
           this.emit('redaction', { roomId, redacts: event.redacts, event });
@@ -1081,7 +1111,7 @@ export class MxjsClient {
    * @returns {string} The localpart, or `"?"` if extraction fails.
    */
   extractLocalpart(userId) {
-    return userId?.match(/^@([^:]+):/)?.[1] ?? userId ?? "?";
+    return userId?.match(/^@([^:]+):/)?.[1] ?? (userId || "?");
   }
 
   /**

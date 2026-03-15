@@ -1,5 +1,9 @@
 # mxjs-lite
 
+[![npm version](https://img.shields.io/npm/v/@litruv/mxjs-lite.svg)](https://www.npmjs.com/package/@litruv/mxjs-lite)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![API Coverage](https://img.shields.io/badge/API%20coverage-23.13%25%20(34%2F147)-orange.svg)](test/api-coverage.test.js)
+
 Lightweight Matrix protocol client. Pure ES module, no dependencies.
 
 ```
@@ -125,12 +129,17 @@ new MxjsClient([options])
 
 [connect](#event-connect)  
 [disconnect](#event-disconnect)  
+[edit](#event-edit)  
 [invite](#event-invite)  
 [memberUpdate](#event-memberupdate)  
 [mention](#event-mention)  
 [message](#event-message)  
+[redaction](#event-redaction)  
+[roomAvatarChange](#event-roomavatarchange)  
 [roomJoin](#event-roomjoin)  
 [roomLeave](#event-roomleave)  
+[roomNameChange](#event-roomnamechange)  
+[roomTopicChange](#event-roomtopicchange)  
 [typing](#event-typing)
 
 ### Event Helpers
@@ -1065,6 +1074,25 @@ mx.on('disconnect', () => {
 
 ---
 
+### Event: edit
+
+Emitted by `processSyncData` when a message is edited.
+
+| Property | Type | Description |
+|---|---|---|
+| `roomId` | `string` | ID of the room |
+| `edits` | `string` | Event ID of the original message being edited |
+| `newBody` | `string` | The new text content |
+| `event` | `Object` | The raw Matrix edit event |
+
+```js
+mx.on('edit', ({ roomId, edits, newBody }) => {
+    console.log(`Message ${edits} edited to: ${newBody}`);
+});
+```
+
+---
+
 ### Event: invite
 
 Emitted by `processSyncData` when the client receives a room invitation.
@@ -1083,7 +1111,7 @@ mx.on('invite', ({ roomId }) => {
 
 ### Event: memberUpdate
 
-Emitted by `processSyncData` for each `m.room.member` event in the timeline. `change` is the object returned by `getMembershipChange`.
+Emitted by `processSyncData` for each `m.room.member` event in the timeline. `change` is the object returned by `getMembershipChange`. This includes joins, leaves, kicks, bans, and display name changes. For display name changes, `change.type` will be `"rename"`.
 
 | Property | Type | Description |
 |---|---|---|
@@ -1093,7 +1121,11 @@ Emitted by `processSyncData` for each `m.room.member` event in the timeline. `ch
 
 ```js
 mx.on('memberUpdate', ({ roomId, change }) => {
-    console.log(`[${roomId}] ${change.userId} — ${change.type}`);
+    if (change.type === 'rename') {
+        console.log(`${change.userId} changed name from ${change.prevDisplayName} to ${change.displayName}`);
+    } else {
+        console.log(`[${roomId}] ${change.userId} — ${change.type}`);
+    }
 });
 ```
 
@@ -1140,6 +1172,43 @@ mx.on('message', ({ roomId, event }) => {
 
 ---
 
+### Event: redaction
+
+Emitted by `processSyncData` when an event is redacted (deleted).
+
+| Property | Type | Description |
+|---|---|---|
+| `roomId` | `string` | ID of the room |
+| `redacts` | `string` | Event ID of the message that was deleted |
+| `event` | `Object` | The raw Matrix redaction event |
+
+```js
+mx.on('redaction', ({ roomId, redacts, event }) => {
+    console.log(`Message ${redacts} was deleted by ${event.sender}`);
+});
+```
+
+---
+
+### Event: roomAvatarChange
+
+Emitted by `processSyncData` when a room's avatar is changed.
+
+| Property | Type | Description |
+|---|---|---|
+| `roomId` | `string` | ID of the room |
+| `avatarUrl` | `string\|null` | New avatar URL (mxc:// URI) |
+| `prevAvatarUrl` | `string\|null` | Previous avatar URL |
+| `event` | `Object` | The raw Matrix state event |
+
+```js
+mx.on('roomAvatarChange', ({ roomId, avatarUrl }) => {
+    console.log(`Room avatar changed to ${avatarUrl}`);
+});
+```
+
+---
+
 ### Event: roomJoin
 
 Emitted by `processSyncData` the first time a room appears in a sync response (i.e. the client joined a new room or this is the first sync).
@@ -1172,6 +1241,44 @@ mx.on('roomLeave', ({ roomId }) => {
 
 ---
 
+### Event: roomNameChange
+
+Emitted by `processSyncData` when a room's name is changed.
+
+| Property | Type | Description |
+|---|---|---|
+| `roomId` | `string` | ID of the room |
+| `name` | `string\|null` | New room name |
+| `prevName` | `string\|null` | Previous room name |
+| `event` | `Object` | The raw Matrix state event |
+
+```js
+mx.on('roomNameChange', ({ roomId, name, prevName }) => {
+    console.log(`Room name changed from "${prevName}" to "${name}"`);
+});
+```
+
+---
+
+### Event: roomTopicChange
+
+Emitted by `processSyncData` when a room's topic is changed.
+
+| Property | Type | Description |
+|---|---|---|
+| `roomId` | `string` | ID of the room |
+| `topic` | `string\|null` | New room topic |
+| `prevTopic` | `string\|null` | Previous room topic |
+| `event` | `Object` | The raw Matrix state event |
+
+```js
+mx.on('roomTopicChange', ({ roomId, topic, prevTopic }) => {
+    console.log(`Room topic changed from "${prevTopic}" to "${topic}"`);
+});
+```
+
+---
+
 ### Event: typing
 
 Emitted by `processSyncData` whenever the set of typing users in a room changes.
@@ -1186,3 +1293,20 @@ mx.on('typing', ({ roomId, userIds }) => {
     console.log(`${userIds.join(', ')} is typing in ${roomId}`);
 });
 ```
+## Testing
+
+Check Matrix Client-Server API coverage:
+
+```bash
+npm test  # Test all 147 Matrix API endpoints (34 implemented, 113 not implemented)
+```
+
+This test automatically creates and cleans up temporary test accounts on chat.ruv.wtf - no configuration needed!
+
+**API coverage**: 23.13% (34/147 Matrix endpoints) - See [test/api-coverage.test.js](test/api-coverage.test.js)
+
+---
+
+## License
+
+MIT
