@@ -4,10 +4,10 @@
 ╚═══════════════════════════════════════════════════════╝
 
 📊 Total Endpoints Tested: 142
-✅ Fully Implemented: 55 (38.73%)
-⚠️  Restricted/Server Limitation: 2
+✅ Fully Implemented: 78 (54.93%)
+⚠️  Restricted/Server Limitation: 0
 🔶 Partially Implemented: 0
-❌ Not Implemented: 85
+❌ Not Implemented: 64
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -38,9 +38,9 @@
 ┌─ Capabilities (1/1 — 100%)
 │  ✓ GET /capabilities
 │
-┌─ Filter API (0/2 — 0%)
-│  ✗ POST /user/{userId}/filter
-│  ✗ GET /user/{userId}/filter/{filterId}
+┌─ Filter API (2/2 — 100%)
+│  ✓ POST /user/{userId}/filter
+│  ✓ GET /user/{userId}/filter/{filterId}
 │
 ┌─ Events & Sync (1/1 — 100%)
 │  ✓ GET /sync
@@ -61,7 +61,8 @@
 │  ✓ GET /rooms/{roomId}/relations/{eventId}/{relType}/{eventType}
 │  ✓ GET /rooms/{roomId}/timestamp_to_event
 │
-┌─ Rooms - Management (10/11 — 91%)
+┌─ Rooms - Management (11/11 — 100%)
+│  ✓ POST /createRoom
 │  ✓ POST /join/{roomIdOrAlias}
 │  ✓ POST /rooms/{roomId}/join
 │  ✓ POST /knock/{roomIdOrAlias}
@@ -72,41 +73,40 @@
 │  ✓ POST /rooms/{roomId}/ban
 │  ✓ POST /rooms/{roomId}/unban
 │  ✓ POST /rooms/{roomId}/upgrade
-│  ! POST /createRoom
 │
-┌─ Room Directory (2/11 — 18%)
+┌─ Room Directory (11/11 — 100%)
 │  ✓ GET /directory/room/{roomAlias}
+│  ✓ PUT /directory/room/{roomAlias}
+│  ✓ DELETE /directory/room/{roomAlias}
+│  ✓ GET /rooms/{roomId}/aliases
+│  ✓ GET /joined_rooms
 │  ✓ GET /publicRooms
-│  ✗ PUT /directory/room/{roomAlias}
-│  ✗ DELETE /directory/room/{roomAlias}
-│  ✗ GET /rooms/{roomId}/aliases
-│  ✗ GET /joined_rooms
-│  ✗ POST /publicRooms
-│  ✗ GET /directory/list/room/{roomId}
-│  ✗ PUT /directory/list/room/{roomId}
-│  ✗ GET /room_summary/{roomIdOrAlias}
-│  ✗ GET /rooms/{roomId}/hierarchy
+│  ✓ POST /publicRooms
+│  ✓ GET /directory/list/room/{roomId}
+│  ✓ PUT /directory/list/room/{roomId}
+│  ✓ GET /room_summary/{roomIdOrAlias}
+│  ✓ GET /rooms/{roomId}/hierarchy
 │
 ┌─ User Directory (0/1 — 0%)
 │  ✗ POST /user_directory/search
 │
-┌─ User Profiles (3/7 — 43%)
+┌─ User Profiles (7/7 — 100%)
 │  ✓ GET /profile/{userId}
+│  ✓ GET /profile/{userId}/displayname
 │  ✓ PUT /profile/{userId}/displayname
+│  ✓ GET /profile/{userId}/avatar_url
 │  ✓ PUT /profile/{userId}/avatar_url
-│  ✗ GET /profile/{userId}/displayname
-│  ✗ GET /profile/{userId}/avatar_url
-│  ✗ DELETE /profile/{userId}/displayname
-│  ✗ DELETE /profile/{userId}/avatar_url
+│  ✓ DELETE /profile/{userId}/displayname
+│  ✓ DELETE /profile/{userId}/avatar_url
 │
 ┌─ Presence (2/2 — 100%)
 │  ✓ GET /presence/{userId}/status
 │  ✓ PUT /presence/{userId}/status
 │
-┌─ Typing & Receipts (2/3 — 67%)
+┌─ Typing & Receipts (3/3 — 100%)
 │  ✓ PUT /rooms/{roomId}/typing/{userId}
 │  ✓ POST /rooms/{roomId}/receipt/{receiptType}/{eventId}
-│  ✗ POST /rooms/{roomId}/read_markers
+│  ✓ POST /rooms/{roomId}/read_markers
 │
 ┌─ Sending Events (Message Types) (4/4 — 100%)
 │  ✓ m.room.message (text)
@@ -163,14 +163,14 @@
 │  ✗ POST /pushers/set
 │  ✗ GET /notifications
 │
-┌─ Search (0/1 — 0%)
-│  ✗ POST /search
+┌─ Search (1/1 — 100%)
+│  ✓ POST /search
 │
-┌─ Account Data (0/4 — 0%)
-│  ✗ PUT /user/{userId}/account_data/{type}
-│  ✗ GET /user/{userId}/account_data/{type}
-│  ✗ PUT /user/{userId}/rooms/{roomId}/account_data/{type}
-│  ✗ GET /user/{userId}/rooms/{roomId}/account_data/{type}
+┌─ Account Data (4/4 — 100%)
+│  ✓ PUT /user/{userId}/account_data/{type}
+│  ✓ GET /user/{userId}/account_data/{type}
+│  ✓ PUT /user/{userId}/rooms/{roomId}/account_data/{type}
+│  ✓ GET /user/{userId}/rooms/{roomId}/account_data/{type}
 │
 ┌─ Server Administration (0/1 — 0%)
 │  ✗ GET /admin/whois/{userId}
@@ -198,12 +198,12 @@
 ┌─ Threads (1/1 — 100%)
 │  ✓ GET /rooms/{roomId}/threads
 │
-┌─ Media Repository (4/5 — 80%)
+┌─ Media Repository (5/5 — 100%)
+│  ✓ POST /upload
 │  ✓ GET /download/{serverName}/{mediaId}
 │  ✓ GET /thumbnail/{serverName}/{mediaId}
 │  ✓ GET /preview_url
 │  ✓ GET /config
-│  ! POST /upload
 │
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

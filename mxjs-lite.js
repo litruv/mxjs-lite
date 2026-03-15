@@ -9,6 +9,9 @@ import { Sync } from './src/sync.js';
 import { Media } from './src/media.js';
 import { Html } from './src/html.js';
 import { Capabilities } from './src/capabilities.js';
+import { Filter } from './src/filter.js';
+import { AccountData } from './src/accountdata.js';
+import { Search } from './src/search.js';
 
 const mixins = [
   Html,
@@ -21,6 +24,9 @@ const mixins = [
   Profile,
   Auth,
   Capabilities,
+  Filter,
+  AccountData,
+  Search,
 ];
 
 /**
@@ -29,7 +35,8 @@ const mixins = [
  * Composed from categorised mixins:
  * {@link Auth}, {@link Profile}, {@link Directory},
  * {@link Rooms}, {@link Events}, {@link Receipts},
- * {@link Sync}, {@link Media}, {@link Html}, {@link Capabilities}.
+ * {@link Sync}, {@link Media}, {@link Html}, {@link Capabilities},
+ * {@link Filter}, {@link AccountData}, {@link Search}.
  */
 export class MxjsClient extends mixins.reduce((Base, mixin) => mixin(Base), BaseMxjsClient) {}
 

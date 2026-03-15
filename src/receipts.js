@@ -49,4 +49,30 @@ export const Receipts = (Base) => class extends Base {
       return false;
     }
   }
+
+  /**
+   * Sets read markers for a room (fully read marker and optional read receipt).
+   * @param {string} roomId - The room ID
+   * @param {string} fullyReadEventId - The event ID to mark as fully read
+   * @param {string} [readReceiptEventId] - Optional event ID to send a read receipt for
+   * @returns {Promise<boolean>} `true` on success.
+   */
+  async setReadMarkers(roomId, fullyReadEventId, readReceiptEventId) {
+    try {
+      const body = { 'm.fully_read': fullyReadEventId };
+      if (readReceiptEventId) {
+        body['m.read'] = readReceiptEventId;
+      }
+      return !(
+        await this.api(
+          `/rooms/${roomId}/read_markers`,
+          "POST",
+          body,
+        )
+      ).errcode;
+    } catch (e) {
+      cerr("read_markers:", e);
+      return false;
+    }
+  }
 };

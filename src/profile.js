@@ -54,6 +54,70 @@ export const Profile = (Base) => class extends Base {
   }
 
   /**
+   * Gets the display name for a specific user.
+   * @param {string} [userId=this.userId] - The user ID to look up.
+   * @returns {Promise<string|null>} The display name, or null if not set or on error.
+   */
+  async getDisplayName(userId = this.userId) {
+    try {
+      const data = await this.api(`/profile/${enc(userId)}/displayname`);
+      return data.errcode ? null : (data.displayname || null);
+    } catch (e) {
+      cerr("getDisplayName:", e);
+      return null;
+    }
+  }
+
+  /**
+   * Gets the avatar URL for a specific user.
+   * @param {string} [userId=this.userId] - The user ID to look up.
+   * @returns {Promise<string|null>} The avatar URL (mxc://), or null if not set or on error.
+   */
+  async getAvatarUrl(userId = this.userId) {
+    try {
+      const data = await this.api(`/profile/${enc(userId)}/avatar_url`);
+      return data.errcode ? null : (data.avatar_url || null);
+    } catch (e) {
+      cerr("getAvatarUrl:", e);
+      return null;
+    }
+  }
+
+  /**
+   * Deletes the display name for the current user (sets it to empty).
+   * @returns {Promise<boolean>} `true` on success.
+   */
+  async deleteDisplayName() {
+    try {
+      const result = await this.api(
+        `/profile/${this.userId}/displayname`,
+        "DELETE"
+      );
+      return !result.errcode;
+    } catch (e) {
+      cerr("deleteDisplayName:", e);
+      return false;
+    }
+  }
+
+  /**
+   * Deletes the avatar URL for the current user (sets it to empty).
+   * @returns {Promise<boolean>} `true` on success.
+   */
+  async deleteAvatarUrl() {
+    try {
+      const result = await this.api(
+        `/profile/${this.userId}/avatar_url`,
+        "DELETE"
+      );
+      return !result.errcode;
+    } catch (e) {
+      cerr("deleteAvatarUrl:", e);
+      return false;
+    }
+  }
+
+  /**
    * Fetches the presence status of a user using the public read token.
    * @param {string} userId
    * @returns {Promise<{presence: string, lastActive: number}|null>}
