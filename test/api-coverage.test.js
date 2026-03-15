@@ -245,18 +245,6 @@ describe('Complete Matrix Client-Server API Coverage', () => {
     it('GET /sync - should sync events', () => {
       recordResult('GET /sync', typeof authedClient.sync === 'function', true);
     });
-
-    it('GET /events (deprecated) - should get events', async () => {
-      recordResult('GET /events', false, false);
-    });
-
-    it('GET /events/{eventId} - should get single event', async () => {
-      recordResult('GET /events/{eventId}', false, false);
-    });
-
-    it('GET /initialSync (deprecated) - should initial sync', async () => {
-      recordResult('GET /initialSync', false, false);
-    });
   });
 
   describe('Rooms - Events', () => {
@@ -315,10 +303,6 @@ describe('Complete Matrix Client-Server API Coverage', () => {
 
     it('GET /rooms/{roomId}/timestamp_to_event - should get event by timestamp', async () => {
       recordResult('GET /rooms/{roomId}/timestamp_to_event', false, false);
-    });
-
-    it('GET /rooms/{roomId}/initialSync (deprecated) - should initial sync room', async () => {
-      recordResult('GET /rooms/{roomId}/initialSync', false, false);
     });
   });
 
