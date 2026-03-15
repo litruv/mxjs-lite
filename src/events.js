@@ -293,6 +293,193 @@ export const Events = (Base) => class extends Base {
   }
 
   /**
+   * Gets a single event by its ID.
+   * @param {string} roomId
+   * @param {string} eventId
+   * @returns {Promise<Object|null>} The event object, or `null` on failure.
+   */
+  async getEvent(roomId, eventId) {
+    try {
+      const result = await this.api(`/rooms/${roomId}/event/${eventId}`);
+      return result.errcode ? null : result;
+    } catch (e) {
+      cerr("get event:", e);
+      return null;
+    }
+  }
+
+  /**
+   * Sends a custom event to a room using a transaction ID.
+   * @param {string} roomId
+   * @param {string} eventType - The event type (e.g. "m.room.message").
+   * @param {Object} content - The event content.
+   * @param {string} [txnId] - Optional transaction ID. Defaults to timestamp.
+   * @returns {Promise<{eventId: string}|null>}
+   */
+  async sendEvent(roomId, eventType, content, txnId = null) {
+    try {
+      const transaction = txnId || Date.now().toString();
+      const result = await this.api(
+        `/rooms/${roomId}/send/${eventType}/${transaction}`,
+        "PUT",
+        content,
+      );
+      return result.errcode ? null : { eventId: result.event_id };
+    } catch (e) {
+      cerr("send event:", e);
+      return null;
+    }
+  }
+
+  /**
+   * Gets the list of users that are currently in a room (joined members).
+   * @param {string} roomId
+   * @returns {Promise<{members: Array<{userId: string, displayName: string|null, avatarUrl: string|null}>}|null>}
+   */
+  async getJoinedMembers(roomId) {
+    try {
+      const result = await this.api(`/rooms/${roomId}/joined_members`);
+      if (result.errcode) return null;
+      const members = Object.entries(result.joined || {}).map(([userId, data]) => ({
+        userId,
+        displayName: data.display_name || null,
+        avatarUrl: data.avatar_url || null,
+      }));
+      return { members };
+    } catch (e) {
+      cerr("joined members:", e);
+      return null;
+    }
+  }
+
+  /**
+   * Gets events before and after a specific event (context).
+   * @param {string} roomId
+   * @param {string} eventId
+   * @param {object} [options]
+   * @param {number} [options.limit=10] - Maximum number of events to return on each side.
+   * @returns {Promise<{event: Object, eventsBefore: Object[], eventsAfter: Object[], start: string, end: string}|null>}
+   */
+  async getEventContext(roomId, eventId, { limit = 10 } = {}) {
+    try {
+      const result = await this.api(`/rooms/${roomId}/context/${eventId}?limit=${limit}`);
+      if (result.errcode) return null;
+      return {
+        event: result.event,
+        eventsBefore: result.events_before || [],
+        eventsAfter: result.events_after || [],
+        start: result.start,
+        end: result.end,
+      };
+    } catch (e) {
+      cerr("event context:", e);
+      return null;
+    }
+  }
+
+  /**
+   * Gets all relations to an event.
+   * @param {string} roomId
+   * @param {string} eventId
+   * @param {object} [options]
+   * @param {string|null} [options.from=null] - Pagination token.
+   * @param {number} [options.limit=50] - Maximum number of events to return.
+   * @returns {Promise<{events: Object[], nextBatch: string|null, prevBatch: string|null}|null>}
+   */
+  async getEventRelations(roomId, eventId, { from = null, limit = 50 } = {}) {
+    try {
+      const params = new URLSearchParams({ limit: limit.toString() });
+      if (from) params.set("from", from);
+      const result = await this.api(`/rooms/${roomId}/relations/${eventId}?${params.toString()}`);
+      if (result.errcode) return null;
+      return {
+        events: result.chunk || [],
+        nextBatch: result.next_batch || null,
+        prevBatch: result.prev_batch || null,
+      };
+    } catch (e) {
+      cerr("event relations:", e);
+      return null;
+    }
+  }
+
+  /**
+   * Gets relations to an event filtered by relation type.
+   * @param {string} roomId
+   * @param {string} eventId
+   * @param {string} relType - The relation type (e.g. "m.annotation", "m.replace").
+   * @param {object} [options]
+   * @param {string|null} [options.from=null] - Pagination token.
+   * @param {number} [options.limit=50] - Maximum number of events to return.
+   * @returns {Promise<{events: Object[], nextBatch: string|null, prevBatch: string|null}|null>}
+   */
+  async getEventRelationsByType(roomId, eventId, relType, { from = null, limit = 50 } = {}) {
+    try {
+      const params = new URLSearchParams({ limit: limit.toString() });
+      if (from) params.set("from", from);
+      const result = await this.api(`/rooms/${roomId}/relations/${eventId}/${enc(relType)}?${params.toString()}`);
+      if (result.errcode) return null;
+      return {
+        events: result.chunk || [],
+        nextBatch: result.next_batch || null,
+        prevBatch: result.prev_batch || null,
+      };
+    } catch (e) {
+      cerr("event relations by type:", e);
+      return null;
+    }
+  }
+
+  /**
+   * Gets relations to an event filtered by relation type and event type.
+   * @param {string} roomId
+   * @param {string} eventId
+   * @param {string} relType - The relation type (e.g. "m.annotation").
+   * @param {string} eventType - The event type (e.g. "m.reaction").
+   * @param {object} [options]
+   * @param {string|null} [options.from=null] - Pagination token.
+   * @param {number} [options.limit=50] - Maximum number of events to return.
+   * @returns {Promise<{events: Object[], nextBatch: string|null, prevBatch: string|null}|null>}
+   */
+  async getEventRelationsByTypeAndEvent(roomId, eventId, relType, eventType, { from = null, limit = 50 } = {}) {
+    try {
+      const params = new URLSearchParams({ limit: limit.toString() });
+      if (from) params.set("from", from);
+      const result = await this.api(`/rooms/${roomId}/relations/${eventId}/${enc(relType)}/${enc(eventType)}?${params.toString()}`);
+      if (result.errcode) return null;
+      return {
+        events: result.chunk || [],
+        nextBatch: result.next_batch || null,
+        prevBatch: result.prev_batch || null,
+      };
+    } catch (e) {
+      cerr("event relations by type and event:", e);
+      return null;
+    }
+  }
+
+  /**
+   * Gets the event ID at or before a given timestamp.
+   * @param {string} roomId
+   * @param {number} timestamp - Unix timestamp in milliseconds.
+   * @param {string} [dir="f"] - Direction: "f" (forwards) or "b" (backwards).
+   * @returns {Promise<{eventId: string, timestamp: number}|null>}
+   */
+  async getEventByTimestamp(roomId, timestamp, dir = "f") {
+    try {
+      const result = await this.api(`/rooms/${roomId}/timestamp_to_event?ts=${timestamp}&dir=${dir}`);
+      if (result.errcode) return null;
+      return {
+        eventId: result.event_id,
+        timestamp: result.origin_server_ts,
+      };
+    } catch (e) {
+      cerr("timestamp to event:", e);
+      return null;
+    }
+  }
+
+  /**
    * Gets a list of threads in a room.
    * @param {string} roomId
    * @param {object} [options]

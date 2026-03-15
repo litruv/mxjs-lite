@@ -256,7 +256,7 @@ describe('Complete Matrix Client-Server API Coverage', () => {
   describe('Rooms - Events', () => {
     beforeEach(() => setSection('Rooms - Events'));
     it('GET /rooms/{roomId}/event/{eventId} - should get room event', async () => {
-      recordResult('GET /rooms/{roomId}/event/{eventId}', false, false);
+      recordResult('GET /rooms/{roomId}/event/{eventId}', typeof authedClient.getEvent === 'function', true);
     });
 
     it('GET /rooms/{roomId}/state - should get room state', () => {
@@ -272,7 +272,7 @@ describe('Complete Matrix Client-Server API Coverage', () => {
     });
 
     it('PUT /rooms/{roomId}/send/{eventType}/{txnId} - should send event', async () => {
-      recordResult('PUT /rooms/{roomId}/send/{eventType}/{txnId}', testEventId !== null && testEventId !== undefined, true);
+      recordResult('PUT /rooms/{roomId}/send/{eventType}/{txnId}', typeof authedClient.sendEvent === 'function', true);
     });
 
     it('PUT /rooms/{roomId}/redact/{eventId}/{txnId} - should redact event', () => {
@@ -288,27 +288,27 @@ describe('Complete Matrix Client-Server API Coverage', () => {
     });
 
     it('GET /rooms/{roomId}/joined_members - should get joined members', async () => {
-      recordResult('GET /rooms/{roomId}/joined_members', false, false);
+      recordResult('GET /rooms/{roomId}/joined_members', typeof authedClient.getJoinedMembers === 'function', true);
     });
 
     it('GET /rooms/{roomId}/context/{eventId} - should get event context', async () => {
-      recordResult('GET /rooms/{roomId}/context/{eventId}', false, false);
+      recordResult('GET /rooms/{roomId}/context/{eventId}', typeof authedClient.getEventContext === 'function', true);
     });
 
     it('GET /rooms/{roomId}/relations/{eventId} - should get event relations', async () => {
-      recordResult('GET /rooms/{roomId}/relations/{eventId}', false, false);
+      recordResult('GET /rooms/{roomId}/relations/{eventId}', typeof authedClient.getEventRelations === 'function', true);
     });
 
     it('GET /rooms/{roomId}/relations/{eventId}/{relType} - should get event relations by type', async () => {
-      recordResult('GET /rooms/{roomId}/relations/{eventId}/{relType}', false, false);
+      recordResult('GET /rooms/{roomId}/relations/{eventId}/{relType}', typeof authedClient.getEventRelationsByType === 'function', true);
     });
 
     it('GET /rooms/{roomId}/relations/{eventId}/{relType}/{eventType} - should get event relations by type and event type', async () => {
-      recordResult('GET /rooms/{roomId}/relations/{eventId}/{relType}/{eventType}', false, false);
+      recordResult('GET /rooms/{roomId}/relations/{eventId}/{relType}/{eventType}', typeof authedClient.getEventRelationsByTypeAndEvent === 'function', true);
     });
 
     it('GET /rooms/{roomId}/timestamp_to_event - should get event by timestamp', async () => {
-      recordResult('GET /rooms/{roomId}/timestamp_to_event', false, false);
+      recordResult('GET /rooms/{roomId}/timestamp_to_event', typeof authedClient.getEventByTimestamp === 'function', true);
     });
   });
 

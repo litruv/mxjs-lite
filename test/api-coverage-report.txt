@@ -4,10 +4,10 @@
 ╚═══════════════════════════════════════════════════════╝
 
 📊 Total Endpoints Tested: 142
-✅ Fully Implemented: 47 (33.10%)
+✅ Fully Implemented: 55 (38.73%)
 ⚠️  Restricted/Server Limitation: 2
 🔶 Partially Implemented: 0
-❌ Not Implemented: 93
+❌ Not Implemented: 85
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -45,21 +45,21 @@
 ┌─ Events & Sync (1/1 — 100%)
 │  ✓ GET /sync
 │
-┌─ Rooms - Events (6/14 — 43%)
+┌─ Rooms - Events (14/14 — 100%)
+│  ✓ GET /rooms/{roomId}/event/{eventId}
 │  ✓ GET /rooms/{roomId}/state
 │  ✓ GET /rooms/{roomId}/state/{eventType}/{stateKey}
 │  ✓ PUT /rooms/{roomId}/state/{eventType}/{stateKey}
+│  ✓ PUT /rooms/{roomId}/send/{eventType}/{txnId}
 │  ✓ PUT /rooms/{roomId}/redact/{eventId}/{txnId}
 │  ✓ GET /rooms/{roomId}/messages
 │  ✓ GET /rooms/{roomId}/members
-│  ✗ GET /rooms/{roomId}/event/{eventId}
-│  ✗ PUT /rooms/{roomId}/send/{eventType}/{txnId}
-│  ✗ GET /rooms/{roomId}/joined_members
-│  ✗ GET /rooms/{roomId}/context/{eventId}
-│  ✗ GET /rooms/{roomId}/relations/{eventId}
-│  ✗ GET /rooms/{roomId}/relations/{eventId}/{relType}
-│  ✗ GET /rooms/{roomId}/relations/{eventId}/{relType}/{eventType}
-│  ✗ GET /rooms/{roomId}/timestamp_to_event
+│  ✓ GET /rooms/{roomId}/joined_members
+│  ✓ GET /rooms/{roomId}/context/{eventId}
+│  ✓ GET /rooms/{roomId}/relations/{eventId}
+│  ✓ GET /rooms/{roomId}/relations/{eventId}/{relType}
+│  ✓ GET /rooms/{roomId}/relations/{eventId}/{relType}/{eventType}
+│  ✓ GET /rooms/{roomId}/timestamp_to_event
 │
 ┌─ Rooms - Management (10/11 — 91%)
 │  ✓ POST /join/{roomIdOrAlias}

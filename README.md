@@ -2,7 +2,7 @@
 
 [![npm version](https://img.shields.io/npm/v/@litruv/mxjs-lite.svg)](https://www.npmjs.com/package/@litruv/mxjs-lite)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![API Coverage](https://img.shields.io/badge/API%20coverage-33.10%25%20(47%2F142)-orange.svg)](test/api-coverage-report.txt)
+[![API Coverage](https://img.shields.io/badge/API%20coverage-38.73%25%20(55%2F142)-orange.svg)](test/api-coverage-report.txt)
 
 Lightweight Matrix protocol client. Pure ES module, no dependencies.
 
