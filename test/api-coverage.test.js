@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import { MxjsClient } from '../mxjs-lite.js';
 
 /**
@@ -20,8 +20,22 @@ const apiResults = {
   implemented: [],
   notImplemented: [],
   restricted: [],
-  partiallyImplemented: []
+  partiallyImplemented: [],
+  sections: {}
 };
+
+let currentSection = 'General';
+
+/**
+ * Sets the current section for result tracking.
+ * @param {string} name - Section name
+ */
+function setSection(name) {
+  currentSection = name;
+  if (!apiResults.sections[name]) {
+    apiResults.sections[name] = { implemented: [], notImplemented: [], restricted: [], partial: [] };
+  }
+}
 
 describe('Complete Matrix Client-Server API Coverage', () => {
   let client;
@@ -81,13 +95,14 @@ describe('Complete Matrix Client-Server API Coverage', () => {
   }, TEST_TIMEOUT);
 
   describe('Authentication & Account Management', () => {
+    beforeEach(() => setSection('Authentication & Account Management'));
     it('GET /versions - should get supported versions', async () => {
+      let implemented = false;
       try {
         const result = await client.api('/versions', 'GET');
-        recordResult('GET /versions', result?.versions?.length > 0, false);
-      } catch (e) {
-        recordResult('GET /versions', false, false);
-      }
+        implemented = result?.versions?.length > 0;
+      } catch (e) {}
+      recordResult('GET /versions', implemented);
     }, TEST_TIMEOUT);
 
     it('POST /register - should register new account', () => {
@@ -95,41 +110,39 @@ describe('Complete Matrix Client-Server API Coverage', () => {
     });
 
     it('POST /register?kind=guest - should register guest account', async () => {
+      let implemented = false;
       try {
         guestClient = new MxjsClient({ homeserver: HOMESERVER });
-        const result = await guestClient.registerGuest();
-        recordResult('POST /register?kind=guest', result, true);
-      } catch (e) {
-        recordResult('POST /register?kind=guest', false, false);
-      }
+        implemented = !!(await guestClient.registerGuest());
+      } catch (e) {}
+      recordResult('POST /register?kind=guest', implemented);
     }, TEST_TIMEOUT);
 
     it('GET /register/available - should check username availability', async () => {
+      let implemented = false;
       try {
-        const result = await client.api('/register/available?username=test', 'GET');
-        recordResult('GET /register/available', true, false);
-      } catch (e) {
-        recordResult('GET /register/available', false, false);
-      }
+        await client.api('/register/available?username=test', 'GET');
+        implemented = true;
+      } catch (e) {}
+      recordResult('GET /register/available', implemented);
     }, TEST_TIMEOUT);
 
     it('POST /login - should login with password', async () => {
+      let implemented = false;
       try {
         const tmpClient = new MxjsClient({ homeserver: HOMESERVER });
-        const result = await tmpClient.login(authedClient.userId.match(/:(.+)$/)?.[0]?.slice(1), testPassword);
-        recordResult('POST /login', result, false);
-      } catch (e) {
-        recordResult('POST /login', false, false);
-      }
+        implemented = !!(await tmpClient.login(authedClient.userId.match(/:(.+)$/)?.[0]?.slice(1), testPassword));
+      } catch (e) {}
+      recordResult('POST /login', implemented);
     }, TEST_TIMEOUT);
 
     it('GET /login - should get supported login flows', async () => {
+      let implemented = false;
       try {
         const result = await client.api('/login', 'GET');
-        recordResult('GET /login', result?.flows?.length > 0, false);
-      } catch (e) {
-        recordResult('GET /login', false, false);
-      }
+        implemented = result?.flows?.length > 0;
+      } catch (e) {}
+      recordResult('GET /login', implemented);
     }, TEST_TIMEOUT);
 
     it('POST /logout - should logout', async () => {
@@ -162,12 +175,12 @@ describe('Complete Matrix Client-Server API Coverage', () => {
     });
 
     it('GET /account/whoami - should get current user info', async () => {
+      let implemented = false;
       try {
         const result = await authedClient.api('/account/whoami', 'GET');
-        recordResult('GET /account/whoami', result?.user_id !== undefined, false);
-      } catch (e) {
-        recordResult('GET /account/whoami', false, false);
-      }
+        implemented = result?.user_id !== undefined;
+      } catch (e) {}
+      recordResult('GET /account/whoami', implemented);
     }, TEST_TIMEOUT);
 
     it('GET /account/3pid - should get third-party identifiers', async () => {
@@ -204,12 +217,14 @@ describe('Complete Matrix Client-Server API Coverage', () => {
   });
 
   describe('Capabilities', () => {
+    beforeEach(() => setSection('Capabilities'));
     it('GET /capabilities - should get server capabilities', async () => {
       recordResult('GET /capabilities', false, false);
     });
   });
 
   describe('Filter API', () => {
+    beforeEach(() => setSection('Filter API'));
     it('POST /user/{userId}/filter - should create filter', async () => {
       recordResult('POST /user/{userId}/filter', false, false);
     });
@@ -220,6 +235,7 @@ describe('Complete Matrix Client-Server API Coverage', () => {
   });
 
   describe('Events & Sync', () => {
+    beforeEach(() => setSection('Events & Sync'));
     it('GET /sync - should sync events', () => {
       recordResult('GET /sync', typeof authedClient.sync === 'function', true);
     });
@@ -238,6 +254,7 @@ describe('Complete Matrix Client-Server API Coverage', () => {
   });
 
   describe('Rooms - Events', () => {
+    beforeEach(() => setSection('Rooms - Events'));
     it('GET /rooms/{roomId}/event/{eventId} - should get room event', async () => {
       recordResult('GET /rooms/{roomId}/event/{eventId}', false, false);
     });
@@ -300,6 +317,7 @@ describe('Complete Matrix Client-Server API Coverage', () => {
   });
 
   describe('Rooms - Management', () => {
+    beforeEach(() => setSection('Rooms - Management'));
     it('POST /createRoom - should create room', async () => {
       recordResult('POST /createRoom', typeof authedClient.createRoom === 'function', testRoomId ? true : 'restricted');
     });
@@ -346,6 +364,7 @@ describe('Complete Matrix Client-Server API Coverage', () => {
   });
 
   describe('Room Directory', () => {
+    beforeEach(() => setSection('Room Directory'));
     it('GET /directory/room/{roomAlias} - should resolve room alias', () => {
       recordResult('GET /directory/room/{roomAlias}', typeof authedClient.resolveRoomAlias === 'function', true);
     });
@@ -367,12 +386,12 @@ describe('Complete Matrix Client-Server API Coverage', () => {
     });
 
     it('GET /publicRooms - should get public rooms', async () => {
+      let implemented = false;
       try {
         await client.api('/publicRooms', 'GET');
-        recordResult('GET /publicRooms', true, false);
-      } catch (e) {
-        recordResult('GET /publicRooms', false, false);
-      }
+        implemented = true;
+      } catch (e) {}
+      recordResult('GET /publicRooms', implemented);
     }, TEST_TIMEOUT);
 
     it('POST /publicRooms - should search public rooms', async () => {
@@ -397,12 +416,14 @@ describe('Complete Matrix Client-Server API Coverage', () => {
   });
 
   describe('User Directory', () => {
+    beforeEach(() => setSection('User Directory'));
     it('POST /user_directory/search - should search user directory', async () => {
       recordResult('POST /user_directory/search', false, false);
     });
   });
 
   describe('User Profiles', () => {
+    beforeEach(() => setSection('User Profiles'));
     it('GET /profile/{userId} - should get user profile', () => {
       recordResult('GET /profile/{userId}', typeof authedClient.getProfile === 'function', true);
     });
@@ -433,6 +454,7 @@ describe('Complete Matrix Client-Server API Coverage', () => {
   });
 
   describe('Presence', () => {
+    beforeEach(() => setSection('Presence'));
     it('GET /presence/{userId}/status - should get presence', async () => {
       recordResult('GET /presence/{userId}/status', false, false);
     });
@@ -443,6 +465,7 @@ describe('Complete Matrix Client-Server API Coverage', () => {
   });
 
   describe('Typing & Receipts', () => {
+    beforeEach(() => setSection('Typing & Receipts'));
     it('PUT /rooms/{roomId}/typing/{userId} - should send typing notification', () => {
       recordResult('PUT /rooms/{roomId}/typing/{userId}', typeof authedClient.sendTyping === 'function', true);
     });
@@ -463,6 +486,7 @@ describe('Complete Matrix Client-Server API Coverage', () => {
   });
 
   describe('Sending Events (Message Types)', () => {
+    beforeEach(() => setSection('Sending Events (Message Types)'));
     it('m.room.message (text) - should send text message', () => {
       recordResult('m.room.message (text)', typeof authedClient.sendMessage === 'function', true);
     });
@@ -481,12 +505,14 @@ describe('Complete Matrix Client-Server API Coverage', () => {
   });
 
   describe('VoIP', () => {
+    beforeEach(() => setSection('VoIP'));
     it('GET /voip/turnServer - should get TURN server', async () => {
       recordResult('GET /voip/turnServer', false, false);
     });
   });
 
   describe('Device Management', () => {
+    beforeEach(() => setSection('Device Management'));
     it('GET /devices - should get devices', async () => {
       recordResult('GET /devices', false, false);
     });
@@ -509,6 +535,7 @@ describe('Complete Matrix Client-Server API Coverage', () => {
   });
 
   describe('End-to-End Encryption', () => {
+    beforeEach(() => setSection('End-to-End Encryption'));
     it('POST /keys/upload - should upload keys', async () => {
       recordResult('POST /keys/upload', false, false);
     });
@@ -539,6 +566,7 @@ describe('Complete Matrix Client-Server API Coverage', () => {
   });
 
   describe('Key Backup', () => {
+    beforeEach(() => setSection('Key Backup'));
     it('POST /room_keys/version - should create backup version', async () => {
       recordResult('POST /room_keys/version', false, false);
     });
@@ -597,6 +625,7 @@ describe('Complete Matrix Client-Server API Coverage', () => {
   });
 
   describe('Push Notifications', () => {
+    beforeEach(() => setSection('Push Notifications'));
     it('GET /pushrules/ - should get all push rules', async () => {
       recordResult('GET /pushrules/', false, false);
     });
@@ -647,12 +676,14 @@ describe('Complete Matrix Client-Server API Coverage', () => {
   });
 
   describe('Search', () => {
+    beforeEach(() => setSection('Search'));
     it('POST /search - should search', async () => {
       recordResult('POST /search', false, false);
     });
   });
 
   describe('Account Data', () => {
+    beforeEach(() => setSection('Account Data'));
     it('PUT /user/{userId}/account_data/{type} - should set account data', async () => {
       recordResult('PUT /user/{userId}/account_data/{type}', false, false);
     });
@@ -671,12 +702,14 @@ describe('Complete Matrix Client-Server API Coverage', () => {
   });
 
   describe('Server Administration', () => {
+    beforeEach(() => setSection('Server Administration'));
     it('GET /admin/whois/{userId} - should get user info', async () => {
       recordResult('GET /admin/whois/{userId}', false, false);
     });
   });
 
   describe('Event Reports', () => {
+    beforeEach(() => setSection('Event Reports'));
     it('POST /rooms/{roomId}/report/{eventId} - should report event', async () => {
       recordResult('POST /rooms/{roomId}/report/{eventId}', false, false);
     });
@@ -691,6 +724,7 @@ describe('Complete Matrix Client-Server API Coverage', () => {
   });
 
   describe('Third-party Networks', () => {
+    beforeEach(() => setSection('Third-party Networks'));
     it('GET /thirdparty/protocols - should get protocols', async () => {
       recordResult('GET /thirdparty/protocols', false, false);
     });
@@ -717,12 +751,14 @@ describe('Complete Matrix Client-Server API Coverage', () => {
   });
 
   describe('OpenID', () => {
+    beforeEach(() => setSection('OpenID'));
     it('POST /user/{userId}/openid/request_token - should request OpenID token', async () => {
       recordResult('POST /user/{userId}/openid/request_token', false, false);
     });
   });
 
   describe('SSO', () => {
+    beforeEach(() => setSection('SSO'));
     it('GET /login/sso/redirect - should redirect to SSO', async () => {
       recordResult('GET /login/sso/redirect', false, false);
     });
@@ -733,12 +769,14 @@ describe('Complete Matrix Client-Server API Coverage', () => {
   });
 
   describe('Threads', () => {
+    beforeEach(() => setSection('Threads'));
     it('GET /rooms/{roomId}/threads - should get room threads', async () => {
       recordResult('GET /rooms/{roomId}/threads', false, false);
     });
   });
 
   describe('Media Repository', () => {
+    beforeEach(() => setSection('Media Repository'));
     it('POST /upload - should upload media', () => {
       recordResult('POST /upload', typeof authedClient.uploadMedia === 'function', testRoomId ? true : 'restricted');
     });
@@ -761,64 +799,77 @@ describe('Complete Matrix Client-Server API Coverage', () => {
   });
 });
 
-function recordResult(endpoint, implemented, verified) {
+/**
+ * Records the result of an endpoint test.
+ * @param {string} endpoint - The endpoint name/path
+ * @param {boolean|string} implemented - true, false, 'restricted', or 'partial'
+ */
+function recordResult(endpoint, implemented) {
+  setSection(currentSection);
+  const section = apiResults.sections[currentSection];
+
   if (implemented === true) {
     apiResults.implemented.push(endpoint);
-    expect(true).toBe(true); // Pass the test
+    section.implemented.push(endpoint);
+    expect(true).toBe(true);
   } else if (implemented === 'restricted') {
     apiResults.restricted.push(endpoint);
-    expect(true).toBe(true); // Pass - server limitation, not our fault
+    section.restricted.push(endpoint);
+    expect(true).toBe(true);
   } else if (implemented === 'partial') {
     apiResults.partiallyImplemented.push(endpoint);
-    expect(true).toBe(true); // Pass - partially working
-  } else if (verified === 'not_implemented') {
-    apiResults.notImplemented.push(endpoint);
-    expect.fail(`${endpoint} is not implemented`);
+    section.partial.push(endpoint);
+    expect(true).toBe(true);
   } else {
     apiResults.notImplemented.push(endpoint);
+    section.notImplemented.push(endpoint);
     expect.fail(`${endpoint} is not implemented`);
   }
 }
 
+/**
+ * Generates and prints the API coverage report, grouped by section.
+ * @returns {string} The full report text
+ */
 function printCoverageReport() {
-  const total = apiResults.implemented.length + 
-                apiResults.notImplemented.length + 
+  const total = apiResults.implemented.length +
+                apiResults.notImplemented.length +
                 apiResults.restricted.length +
                 apiResults.partiallyImplemented.length;
-  
+
   const percentage = ((apiResults.implemented.length / total) * 100).toFixed(2);
 
   const lines = [];
   lines.push('\n╔═══════════════════════════════════════════════════════╗');
   lines.push('║     MATRIX CLIENT-SERVER API COVERAGE REPORT          ║');
   lines.push('╚═══════════════════════════════════════════════════════╝\n');
-  
+
   lines.push(`📊 Total Endpoints Tested: ${total}`);
   lines.push(`✅ Fully Implemented: ${apiResults.implemented.length} (${percentage}%)`);
   lines.push(`⚠️  Restricted/Server Limitation: ${apiResults.restricted.length}`);
   lines.push(`🔶 Partially Implemented: ${apiResults.partiallyImplemented.length}`);
   lines.push(`❌ Not Implemented: ${apiResults.notImplemented.length}`);
-  
+
   lines.push('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
-  
-  lines.push('✅ IMPLEMENTED & WORKING:\n');
-  apiResults.implemented.forEach(ep => lines.push(`   ✓ ${ep}`));
-  
-  if (apiResults.partiallyImplemented.length > 0) {
-    lines.push('\n🔶 PARTIALLY IMPLEMENTED:\n');
-    apiResults.partiallyImplemented.forEach(ep => lines.push(`   ~ ${ep}`));
+
+  for (const [name, section] of Object.entries(apiResults.sections)) {
+    const sectionTotal = section.implemented.length + section.notImplemented.length +
+                         section.restricted.length + section.partial.length;
+    if (sectionTotal === 0) continue;
+
+    const sectionPct = ((section.implemented.length / sectionTotal) * 100).toFixed(0);
+    lines.push(`┌─ ${name} (${section.implemented.length}/${sectionTotal} — ${sectionPct}%)`);
+
+    section.implemented.forEach(ep => lines.push(`│  ✓ ${ep}`));
+    section.partial.forEach(ep => lines.push(`│  ~ ${ep}`));
+    section.restricted.forEach(ep => lines.push(`│  ! ${ep}`));
+    section.notImplemented.forEach(ep => lines.push(`│  ✗ ${ep}`));
+
+    lines.push('│');
   }
-  
-  if (apiResults.restricted.length > 0) {
-    lines.push('\n⚠️  RESTRICTED (Server Permissions):\n');
-    apiResults.restricted.forEach(ep => lines.push(`   ! ${ep}`));
-  }
-  
-  lines.push('\n❌ NOT IMPLEMENTED:\n');
-  apiResults.notImplemented.forEach(ep => lines.push(`   ✗ ${ep}`));
-  
+
   lines.push('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
-  
+
   const report = lines.join('\n');
   console.log(report);
   return report;
