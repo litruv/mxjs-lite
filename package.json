@@ -7,10 +7,11 @@
   "type": "module",
   "files": [
     "mxjs-lite.js",
+    "src/",
     "build/mxjs-lite.min.js"
   ],
   "scripts": {
-    "build": "terser mxjs-lite.js -c -m --module -o build/mxjs-lite.min.js",
+    "build": "rollup -c rollup.config.js",
     "test": "vitest run test/api-coverage.test.js",
     "posttest": "node update-badge.js",
     "prepublishOnly": "npm run build"
@@ -39,6 +40,8 @@
     "access": "public"
   },
   "devDependencies": {
+    "@rollup/plugin-terser": "^1.0.0",
+    "rollup": "^4.59.0",
     "terser": "^5.46.0",
     "vitest": "^4.1.0"
   }

@@ -1298,12 +1298,10 @@ mx.on('typing', ({ roomId, userIds }) => {
 Check Matrix Client-Server API coverage:
 
 ```bash
-npm test  # Test all 147 Matrix API endpoints (34 implemented, 113 not implemented)
+npm test
 ```
 
-This test automatically creates and cleans up temporary test accounts on chat.ruv.wtf - no configuration needed!
-
-**API coverage**: 22.82% (34/149 Matrix endpoints) - See [test/api-coverage.test.js](test/api-coverage.test.js)
+Runs all Matrix Client-Server API endpoint tests against a live homeserver (chat.ruv.wtf). Test accounts are created and removed automatically — no configuration needed. Results are saved to [api-coverage-report.txt](api-coverage-report.txt).
 
 ---
 
