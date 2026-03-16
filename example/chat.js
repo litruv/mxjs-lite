@@ -238,8 +238,8 @@ export class ChatClient {
         this.elements.channelList.innerHTML = '';
         for (const [roomId, room] of this.rooms) {
             const div = Object.assign(document.createElement('div'), {
-                className: 'channel-item' + (roomId === this.activeRoomId ? ' active' : ''),
-                textContent: room.displayName,
+                className: 'channel-item' + (roomId === this.activeRoomId ? ' active' : '') + (room.tombstoneRoomId ? ' tombstoned' : ''),
+                textContent: (room.tombstoneRoomId ? '⚰️ ' : '') + room.displayName,
             });
             div.dataset.roomId = roomId;
             if (room.unreadCount > 0) {
@@ -305,27 +305,43 @@ export class ChatClient {
     }
 
     /**
+     * Builds the DOM element for a message event without inserting it into the DOM.
+     * Returns `null` for non-message or edit events.
+     * @param {RoomState} room
+     * @param {Object} event
+     * @returns {HTMLElement|null}
+     */
+    #buildEventEl(room, event) {
+        if (event?.type !== 'm.room.message' || !event.content) return null;
+        if (this.client.isEditEvent(event)) return null;
+        const ts  = event.origin_server_ts || Date.now();
+        const eid = event.event_id;
+        if (this.client.isImageMessage(event) && event.content.url) {
+            return this.#buildImageEl(room, event.sender, event.content.url, event.content.body || 'Image', ts, eid);
+        }
+        if (!event.content.body) return null;
+        let content = event.content.body;
+        if (this.client.hasFormattedBody(event)) {
+            try { content = this.#htmlToFragment(this.client.sanitizeHtml(event.content.formatted_body)); } catch { }
+        }
+        return this.#buildMessageEl(room, event.sender, content, ts, eid);
+    }
+
+    /**
      * Dispatches a single timeline event to the appropriate render method.
      * @param {RoomState} room
      * @param {Object} event
      */
     renderEvent(room, event) {
-        if (event?.type !== 'm.room.message' || !event.content) return;
-        if (this.client.isEditEvent(event)) return;
-        const ts  = event.origin_server_ts || Date.now();
-        const eid = event.event_id;
-        if (this.client.isImageMessage(event) && event.content.url) {
-            this.#renderImage(room, event.sender, event.content.url, event.content.body || 'Image', ts, eid);
-        } else if (event.content.body) {
-            let content = event.content.body;
-            if (this.client.hasFormattedBody(event)) {
-                try { content = this.#htmlToFragment(this.client.sanitizeHtml(event.content.formatted_body)); } catch { }
-            }
-            this.#renderMessage(room, event.sender, content, ts, eid);
-        }
+        if (event.event_id && room.renderedEventIds.has(event.event_id)) return;
+        if (event.event_id) room.renderedEventIds.add(event.event_id);
+        const el = this.#buildEventEl(room, event);
+        if (!el) return;
+        room.messagesEl.appendChild(el);
+        room.messagesEl.scrollTop = room.messagesEl.scrollHeight;
     }
 
-    #renderMessage(room, sender, content, ts, eventId) {
+    #buildMessageEl(room, sender, content, ts, eventId) {
         const div = Object.assign(document.createElement('div'), { className: 'message' });
         div.dataset.eventId = eventId ?? '';
         div.dataset.sender  = sender;
@@ -340,11 +356,10 @@ export class ChatClient {
             Object.assign(document.createElement('span'), { className: `message-sender${sender === this.client?.userId ? ' self' : ''}`, textContent: this.getDisplayName(sender, room) }),
             contentEl,
         );
-        room.messagesEl.appendChild(div);
-        room.messagesEl.scrollTop = room.messagesEl.scrollHeight;
+        return div;
     }
 
-    #renderImage(room, sender, url, body, ts, eventId) {
+    #buildImageEl(room, sender, url, body, ts, eventId) {
         const httpUrl = this.client.mxcToHttp(url) ?? url;
         const img = Object.assign(document.createElement('img'), { src: httpUrl, alt: body, title: body });
         img.className = 'chat-image';
@@ -358,8 +373,7 @@ export class ChatClient {
             Object.assign(document.createElement('span'), { className: `message-sender${sender === this.client?.userId ? ' self' : ''}`, textContent: this.getDisplayName(sender, room) }),
             bodyEl,
         );
-        room.messagesEl.appendChild(div);
-        room.messagesEl.scrollTop = room.messagesEl.scrollHeight;
+        return div;
     }
 
     #showMessageContextMenu(x, y, eventId, sender, room) {
@@ -423,6 +437,29 @@ export class ChatClient {
         pill.dataset.count = String(parseInt(pill.dataset.count) + 1);
         if (senderId === this.client?.userId) pill.classList.add('self');
         pill.textContent = `${emoji} ${pill.dataset.count}`;
+    }
+
+    /**
+     * Decrements or removes a reaction pill from an existing message element.
+     * @param {RoomState} room
+     * @param {string} eventId
+     * @param {string} emoji
+     */
+    #removeReaction(room, eventId, emoji) {
+        const msgEl = room.messagesEl?.querySelector(`[data-event-id="${eventId}"]`);
+        if (!msgEl) return;
+        const bar = msgEl.querySelector('.reaction-bar');
+        if (!bar) return;
+        const pill = [...bar.querySelectorAll('.reaction-pill')].find(p => p.dataset.emoji === emoji);
+        if (!pill) return;
+        const count = parseInt(pill.dataset.count) - 1;
+        if (count <= 0) {
+            pill.remove();
+            if (!bar.children.length) bar.remove();
+        } else {
+            pill.dataset.count = String(count);
+            pill.textContent = `${emoji} ${count}`;
+        }
     }
 
     #showChannelContextMenu(x, y, roomId) {
@@ -516,10 +553,18 @@ export class ChatClient {
             room.historyLoaded = false;
             return;
         }
+        // Reverse to chronological (oldest first) so the fragment inserts in order
         const messages = [...history.messages].reverse();
-        // First pass – render base messages
-        for (const event of messages) this.renderEvent(room, event);
-        // Second pass – apply edits
+        const fragment = document.createDocumentFragment();
+        for (const event of messages) {
+            if (event.event_id && room.renderedEventIds.has(event.event_id)) continue;
+            if (event.event_id) room.renderedEventIds.add(event.event_id);
+            const el = this.#buildEventEl(room, event);
+            if (el) fragment.appendChild(el);
+        }
+        // Prepend history before any sync messages already in the DOM
+        room.messagesEl.prepend(fragment);
+        // Apply edits from the history batch now that elements are in the DOM
         for (const event of messages) {
             if (!this.client.isEditEvent(event)) continue;
             const rel = this.client.getEventRelation(event);
@@ -530,6 +575,24 @@ export class ChatClient {
             if (contentEl) contentEl.textContent = newBody;
             if (!msgEl.querySelector('.edited-tag'))
                 msgEl.appendChild(Object.assign(document.createElement('span'), { className: 'edited-tag', textContent: '(edited)' }));
+        }
+    }
+
+    /**
+     * Ensures a room alias has a server part. If the alias already contains a
+     * colon after the sigil it is returned unchanged; otherwise the homeserver
+     * hostname is appended.
+     * @param {string} alias
+     * @returns {string}
+     */
+    resolveRoomAlias(alias) {
+        if (!alias) return alias;
+        if (alias.slice(1).includes(':')) return alias;
+        try {
+            const hostname = new URL(this.elements.homeserverInput.value).hostname;
+            return `${alias}:${hostname}`;
+        } catch {
+            return alias;
         }
     }
 
@@ -583,7 +646,7 @@ export class ChatClient {
 
             this.password = password || null;
 
-            const joinResult = await this.client.joinRoom(roomAlias);
+            const joinResult = await this.client.joinRoom(this.resolveRoomAlias(roomAlias));
             if (!joinResult) throw new Error(`Failed to join room – check alias and server`);
 
             this.addSystemMessage(`Connected as ${authResult.userId}`);
@@ -726,6 +789,11 @@ export class ChatClient {
             if (room) this.#addReaction(room, reacts, key, event.sender);
         });
 
+        c.on(ClientEvents.ReactionRemove, ({ roomId, reacts, key }) => {
+            const room = this.rooms.get(roomId);
+            if (room) this.#removeReaction(room, reacts, key);
+        });
+
         c.on(ClientEvents.MemberUpdate, ({ roomId, change }) => {
             const room = this.rooms.get(roomId);
             if (!room) return;
@@ -767,12 +835,18 @@ export class ChatClient {
             const room = this.rooms.get(roomId);
             if (!room) return;
             const isActive = roomId === this.activeRoomId;
-            const typingIds = new Set(userIds);
-            for (const uid of [...room.typingUsers]) {
-                if (!typingIds.has(uid)) room.setTyping(uid, false, r => isActive && this.updateUserList(r));
-            }
-            for (const uid of typingIds) {
+            // sync already diffs — userIds contains only newly-started typers
+            for (const uid of userIds) {
                 if (uid !== c.userId) room.setTyping(uid, true, r => isActive && this.updateUserList(r));
+            }
+        });
+
+        c.on(ClientEvents.TypingEnd, ({ roomId, userIds }) => {
+            const room = this.rooms.get(roomId);
+            if (!room) return;
+            const isActive = roomId === this.activeRoomId;
+            for (const uid of userIds) {
+                room.setTyping(uid, false, r => isActive && this.updateUserList(r));
             }
         });
 
@@ -794,6 +868,32 @@ export class ChatClient {
         c.on(ClientEvents.PresenceUpdate, ({ userId, presence }) => {
             const item = document.querySelector(`#userList [data-user-id="${CSS.escape(userId)}"]`);
             if (item) item.dataset.presence = presence ?? 'offline';
+        });
+
+        c.on(ClientEvents.RoomTombstone, ({ roomId, replacementRoomId, body }) => {
+            const room = this.rooms.get(roomId);
+            if (!room) return;
+            room.tombstoneRoomId = replacementRoomId;
+            this.updateChannelList();
+            if (roomId === this.activeRoomId) {
+                this.addSystemMessage(`⚰️ ${body || 'This room has been upgraded'} — use /join ${replacementRoomId} to follow`);
+            }
+        });
+
+        c.on(ClientEvents.ThreadReply, ({ roomId, threadRootId, event }) => {
+            const room = this.rooms.get(roomId);
+            if (!room) return;
+            const rootEl = room.messagesEl?.querySelector(`[data-event-id="${CSS.escape(threadRootId)}"]`);
+            if (!rootEl) return;
+            let badge = rootEl.querySelector('.thread-badge');
+            if (!badge) {
+                badge = Object.assign(document.createElement('span'), { className: 'thread-badge' });
+                badge.dataset.count = '0';
+                rootEl.appendChild(badge);
+            }
+            const count = parseInt(badge.dataset.count) + 1;
+            badge.dataset.count = String(count);
+            badge.textContent = `💬 ${count} repl${count === 1 ? 'y' : 'ies'}`;
         });
 
         c.on('mention', ({ roomId, event, room }) => {

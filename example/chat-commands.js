@@ -7,23 +7,27 @@ export class CommandHandler {
      * @type {Array<{name: string, args: string, desc: string, aliases: string[]}>}
      */
     static COMMANDS = [
-        { name: 'join',     args: '#room:server',          desc: 'Join a room',          aliases: ['j'] },
-        { name: 'leave',    args: '',                      desc: 'Leave current room',   aliases: ['part'] },
-        { name: 'create',   args: '<Room Name>',           desc: 'Create a new room',    aliases: [] },
-        { name: 'nick',     args: '<name>',                desc: 'Change display name',  aliases: [] },
-        { name: 'invite',   args: '@user:server',          desc: 'Invite a user',        aliases: [] },
-        { name: 'kick',     args: '@user:server [reason]', desc: 'Kick a user',          aliases: [] },
-        { name: 'ban',      args: '@user:server [reason]', desc: 'Ban a user',           aliases: [] },
-        { name: 'unban',    args: '@user:server',          desc: 'Unban a user',         aliases: [] },
-        { name: 'history',  args: '[limit]',               desc: 'Load message history', aliases: ['hist'] },
-        { name: 'edit',     args: '<eventId> <text>',      desc: 'Edit a message',       aliases: [] },
-        { name: 'delete',   args: '<eventId> [reason]',    desc: 'Delete a message',     aliases: ['del'] },
-        { name: 'react',    args: '<eventId> <emoji>',     desc: 'React to a message',   aliases: [] },
-        { name: 'profile',  args: '[@user:server]',        desc: 'View a profile',       aliases: ['me'] },
-        { name: 'password', args: '<old> <new>',           desc: 'Change password',      aliases: ['passwd'] },
-        { name: 'resolve',  args: '#room:server',          desc: 'Resolve room alias',   aliases: [] },
-        { name: 'quit',     args: '',                      desc: 'Disconnect',           aliases: [] },
-        { name: 'help',     args: '',                      desc: 'Show command list',    aliases: [] },
+        { name: 'join',         args: '#room:server',          desc: 'Join a room',                aliases: ['j'] },
+        { name: 'leave',        args: '',                      desc: 'Leave current room',         aliases: ['part'] },
+        { name: 'create',       args: '<Room Name>',           desc: 'Create a new room',          aliases: [] },
+        { name: 'nick',         args: '<name>',                desc: 'Change display name',        aliases: [] },
+        { name: 'invite',       args: '@user:server',          desc: 'Invite a user',              aliases: [] },
+        { name: 'kick',         args: '@user:server [reason]', desc: 'Kick a user',                aliases: [] },
+        { name: 'ban',          args: '@user:server [reason]', desc: 'Ban a user',                 aliases: [] },
+        { name: 'unban',        args: '@user:server',          desc: 'Unban a user',               aliases: [] },
+        { name: 'history',      args: '[limit]',               desc: 'Load message history',       aliases: ['hist'] },
+        { name: 'edit',         args: '<eventId> <text>',      desc: 'Edit a message',             aliases: [] },
+        { name: 'delete',       args: '<eventId> [reason]',    desc: 'Delete a message',           aliases: ['del'] },
+        { name: 'react',        args: '<eventId> <emoji>',     desc: 'React to a message',         aliases: [] },
+        { name: 'profile',      args: '[@user:server]',        desc: 'View a profile',             aliases: ['me'] },
+        { name: 'timezone',     args: '[tz|@user:server]',     desc: 'Get or set IANA time zone',  aliases: ['tz'] },
+        { name: 'upgrade',      args: '<version>',             desc: 'Upgrade room version (mod)', aliases: [] },
+        { name: 'threads',      args: '[limit]',               desc: 'List threads in room',       aliases: [] },
+        { name: 'blockinvites', args: '[on|off]',              desc: 'Toggle invite blocking',     aliases: [] },
+        { name: 'password',     args: '<old> <new>',           desc: 'Change password',            aliases: ['passwd'] },
+        { name: 'resolve',      args: '#room:server',          desc: 'Resolve room alias',         aliases: [] },
+        { name: 'quit',         args: '',                      desc: 'Disconnect',                 aliases: [] },
+        { name: 'help',         args: '',                      desc: 'Show command list',          aliases: [] },
     ];
 
     /**
@@ -63,10 +67,7 @@ export class CommandHandler {
 
     async join(args) {
         if (!args[0]) { this.chat.addErrorMessage('Usage: /join #room:server'); return; }
-        let alias = args[0];
-        if (!alias.includes(':')) {
-            alias = `${alias}:${new URL(this.chat.elements.homeserverInput.value).hostname}`;
-        }
+        const alias = this.chat.resolveRoomAlias(args[0]);
         try {
             this.chat.addSystemMessage(`Joining ${alias}...`);
             const result = await this.client.joinRoom(alias);
@@ -186,10 +187,81 @@ export class CommandHandler {
     async profile(args) {
         const userId = args[0] || this.client.userId;
         try {
-            const p = await this.client.getProfile(userId);
+            const [p, tz] = await Promise.all([
+                this.client.getProfile(userId),
+                this.client.getTimeZone(userId),
+            ]);
             if (!p) throw new Error('Failed to fetch profile');
-            this.chat.addSystemMessage(`${userId} — ${p.displayName || '(no name)'} | Avatar: ${p.avatarUrl || '(none)'}`);
+            const tzStr = tz ? ` | TZ: ${tz}` : '';
+            this.chat.addSystemMessage(`${userId} — ${p.displayName || '(no name)'} | Avatar: ${p.avatarUrl || '(none)'}${tzStr}`);
         } catch (e) { this.chat.addErrorMessage(`Failed to get profile: ${e.message}`); }
+    }
+
+    async timezone(args) {
+        // /timezone                      — show own time zone
+        // /timezone @user:server         — show another user's time zone
+        // /timezone America/New_York      — set own time zone (contains / but no @)
+        const arg = args[0];
+        if (!arg) {
+            const tz = await this.client.getTimeZone();
+            this.chat.addSystemMessage(tz ? `Your time zone: ${tz}` : 'No time zone set. Use /timezone <IANA name> to set one.');
+            return;
+        }
+        if (arg.startsWith('@')) {
+            const tz = await this.client.getTimeZone(arg);
+            this.chat.addSystemMessage(tz ? `${arg} time zone: ${tz}` : `${arg} has no time zone set.`);
+            return;
+        }
+        // treat rest as IANA tz name (may contain spaces if user typed it weirdly)
+        const tzName = args.join(' ');
+        try {
+            if (!await this.client.setTimeZone(tzName)) throw new Error('Server refused');
+            this.chat.addSystemMessage(`Time zone set to ${tzName}`);
+        } catch (e) { this.chat.addErrorMessage(`Failed to set time zone: ${e.message}`); }
+    }
+
+    async upgrade(args) {
+        const version = args[0];
+        if (!version) { this.chat.addErrorMessage('Usage: /upgrade <version>  e.g. /upgrade 11'); return; }
+        if (!this.roomId) { this.chat.addErrorMessage('Not in a room'); return; }
+        try {
+            const result = await this.client.upgradeRoom(this.roomId, version);
+            if (!result?.replacementRoomId) throw new Error('Server refused');
+            this.chat.addSystemMessage(`Room upgraded — joining replacement ${result.replacementRoomId}…`);
+            await this.chat.enterRoom(result.replacementRoomId);
+        } catch (e) { this.chat.addErrorMessage(`Failed to upgrade room: ${e.message}`); }
+    }
+
+    async threads(args) {
+        if (!this.roomId) { this.chat.addErrorMessage('Not in a room'); return; }
+        const limit = parseInt(args[0]) || 10;
+        try {
+            const result = await this.client.getRoomThreads(this.roomId, { limit });
+            if (!result) throw new Error('No response');
+            if (!result.threads.length) { this.chat.addSystemMessage('No threads in this room.'); return; }
+            this.chat.addSystemMessage(`─── Threads (${result.threads.length}) ───`);
+            for (const e of result.threads) {
+                const body = e.content?.body ?? '(no body)';
+                const preview = body.length > 60 ? body.slice(0, 57) + '…' : body;
+                this.chat.addSystemMessage(`[${e.event_id}] ${e.sender}: ${preview}`);
+            }
+            if (result.nextBatch) this.chat.addSystemMessage('(more — not all threads shown)');
+        } catch (e) { this.chat.addErrorMessage(`Failed to load threads: ${e.message}`); }
+    }
+
+    async blockinvites(args) {
+        const arg = args[0]?.toLowerCase();
+        if (!arg) {
+            const enabled = await this.client.getInviteBlocking();
+            if (enabled === null) { this.chat.addErrorMessage('Failed to read invite blocking state.'); return; }
+            this.chat.addSystemMessage(`Invite blocking is currently ${enabled ? 'ON' : 'OFF'}. Use /blockinvites on|off to change.`);
+            return;
+        }
+        if (arg !== 'on' && arg !== 'off') { this.chat.addErrorMessage('Usage: /blockinvites [on|off]'); return; }
+        try {
+            if (!await this.client.setInviteBlocking(arg === 'on')) throw new Error('Server refused');
+            this.chat.addSystemMessage(`Invite blocking ${arg === 'on' ? 'enabled — all room invites will be rejected' : 'disabled — you will receive room invites normally'}.`);
+        } catch (e) { this.chat.addErrorMessage(`Failed to update invite blocking: ${e.message}`); }
     }
 
     async password(args) {
@@ -221,14 +293,18 @@ export class CommandHandler {
             '         /leave              (alias: /part)',
             '         /create <Room Name>',
             '         /resolve #room:server',
+            '         /upgrade <version>   — upgrade room to new version (mod)',
             'Profile: /nick <name>',
-            '         /profile [@user:server]  (alias: /me)',
-            '         /password <old> <new>    (alias: /passwd)',
+            '         /profile [@user:server]      (alias: /me)',
+            '         /timezone [tz|@user:server]  (alias: /tz)',
+            '         /password <old> <new>         (alias: /passwd)',
+            '         /blockinvites [on|off]',
             'Mod:     /invite @user:server',
             '         /kick @user:server [reason]',
             '         /ban @user:server [reason]',
             '         /unban @user:server',
             'History: /history [limit 1-100]   (alias: /hist)',
+            '         /threads [limit]',
             'Events:  /edit <eventId> <new text>',
             '         /delete <eventId> [reason]  (alias: /del)',
             '         /react <eventId> <emoji>',
@@ -236,7 +312,7 @@ export class CommandHandler {
             '─── Right-click shortcuts ────────────────────────────────',
             'Messages: react, edit, delete, copy event ID',
             'Users:    view profile, kick, ban',
-            'Channels: rename (if mod+), leave',
+            'Channels: rename (if mod+), set topic, leave',
         ].forEach(l => this.chat.addSystemMessage(l));
     }
 

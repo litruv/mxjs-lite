@@ -1,4 +1,4 @@
-import { cerr, enc } from './constants.js';
+import { cerr, enc, M_TZ } from './constants.js';
 
 /**
  * Mixin adding user profile and presence methods to a base client class.
@@ -218,6 +218,44 @@ export const Profile = (Base) => class extends Base {
     } catch (e) {
       cerr('adminWhois:', e);
       return null;
+    }
+  }
+
+  /**
+   * Gets the IANA time zone for a user (MSC4175).
+   * Returns the value of the `m.tz` profile field, e.g. `"Europe/Paris"`.
+   * Returns `null` if the field is not set or on failure.
+   * @param {string} [userId=this.userId]
+   * @returns {Promise<string|null>}
+   */
+  async getTimeZone(userId = this.userId) {
+    try {
+      const data = await this.api(`/profile/${enc(userId)}/${M_TZ}`);
+      return data.errcode ? null : (data[M_TZ] ?? null);
+    } catch (e) {
+      cerr('getTimeZone:', e);
+      return null;
+    }
+  }
+
+  /**
+   * Sets the IANA time zone for the current user (MSC4175).
+   * The value must be a valid IANA Time Zone Database name (e.g. `"America/New_York"`).
+   * Pass `null` to clear the field.
+   * @param {string|null} tz - IANA time zone name, or `null` to remove the field.
+   * @returns {Promise<boolean>} `true` on success.
+   */
+  async setTimeZone(tz) {
+    try {
+      const result = await this.api(
+        `/profile/${enc(this.userId)}/${M_TZ}`,
+        tz !== null ? 'PUT' : 'DELETE',
+        tz !== null ? { [M_TZ]: tz } : null,
+      );
+      return !result.errcode;
+    } catch (e) {
+      cerr('setTimeZone:', e);
+      return false;
     }
   }
 };

@@ -41,3 +41,5 @@ export const M_THREAD = "m.thread";
 export const M_CREATE = "m.room.create";
 export const M_TOMBSTONE = "m.room.tombstone";
 export const PUSH_RULE_TOMBSTONE = '.m.rule.tombstone';
+export const M_INVITE_PERM_CONFIG = 'm.invite_permission_config';
+export const M_TZ = 'm.tz';

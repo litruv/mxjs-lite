@@ -1,4 +1,4 @@
-import { cerr, enc } from './constants.js';
+import { cerr, enc, M_INVITE_PERM_CONFIG } from './constants.js';
 
 /**
  * Mixin adding account data methods to a base client class.
@@ -81,5 +81,27 @@ export const AccountData = (Base) => class extends Base {
       cerr("getRoomAccountData:", e);
       return null;
     }
+  }
+
+  /**
+   * Returns whether the current user has invite blocking enabled.
+   * When `true`, the homeserver will reject all incoming room invites (MSC4380).
+   * @returns {Promise<boolean|null>} `true` if blocking is on, `false` if off, `null` on failure.
+   */
+  async getInviteBlocking() {
+    const data = await this.getAccountData(M_INVITE_PERM_CONFIG);
+    if (data === null) return null;
+    return data.default_action === 'block';
+  }
+
+  /**
+   * Enables or disables invite blocking for the current user (MSC4380).
+   * When enabled, the homeserver will reject all incoming room invites.
+   * Sets the `m.invite_permission_config` account data event.
+   * @param {boolean} block - `true` to block all invites, `false` to allow invites.
+   * @returns {Promise<boolean>} `true` on success.
+   */
+  async setInviteBlocking(block) {
+    return this.setAccountData(M_INVITE_PERM_CONFIG, block ? { default_action: 'block' } : {});
   }
 };

@@ -23,6 +23,10 @@ export class RoomState {
         this.unreadCount = 0;
         /** @type {boolean} */
         this.historyLoaded = false;
+        /** @type {string|null} If set, the room has been tombstoned and this is the replacement room ID. */
+        this.tombstoneRoomId = null;
+        /** @type {Set<string>} Tracks event IDs already rendered, prevents duplicates between sync and history loads. */
+        this.renderedEventIds = new Set();
         /** @type {HTMLElement|null} */
         this.messagesEl = null;
     }
@@ -93,6 +97,7 @@ export class RoomState {
         this.typingTimeouts.forEach(t => clearTimeout(t));
         this.typingTimeouts.clear();
         this.typingUsers.clear();
+        this.renderedEventIds.clear();
         if (this.messagesEl) {
             this.messagesEl.remove();
             this.messagesEl = null;
