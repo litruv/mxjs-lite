@@ -26,6 +26,11 @@ export class CommandHandler {
         { name: 'blockinvites', args: '[on|off]',              desc: 'Toggle invite blocking',     aliases: [] },
         { name: 'password',     args: '<old> <new>',           desc: 'Change password',            aliases: ['passwd'] },
         { name: 'resolve',      args: '#room:server',          desc: 'Resolve room alias',         aliases: [] },
+        { name: 'space',        args: '<Space Name>',          desc: 'Create a new space',         aliases: [] },
+        { name: 'addchild',     args: '!roomId:server',        desc: 'Add room to current space',  aliases: [] },
+        { name: 'removechild',  args: '!roomId:server',        desc: 'Remove child from space',    aliases: [] },
+        { name: 'children',     args: '',                      desc: 'List space children',        aliases: [] },
+        { name: 'logout',       args: '',                      desc: 'Clear saved credentials',    aliases: [] },
         { name: 'quit',         args: '',                      desc: 'Disconnect',                 aliases: [] },
         { name: 'help',         args: '',                      desc: 'Show command list',          aliases: [] },
     ];
@@ -282,7 +287,71 @@ export class CommandHandler {
         } catch (e) { this.chat.addErrorMessage(`Failed to resolve: ${e.message}`); }
     }
 
+    async space(args) {
+        const name = args.join(' ');
+        if (!name) { this.chat.addErrorMessage('Usage: /space Space Name'); return; }
+        try {
+            this.chat.addSystemMessage(`Creating space "${name}"...`);
+            const result = await this.client.createSpace(name, { preset: 'public_chat', visibility: 'public' });
+            if (!result?.roomId) throw new Error('Server denied space creation');
+            await this.chat.enterRoom(result.roomId, name);
+        } catch (e) { this.chat.addErrorMessage(`Failed to create space: ${e.message}`); }
+    }
+
+    async addchild(args) {
+        if (!this.roomId) { this.chat.addErrorMessage('Not in a room'); return; }
+        if (!args[0]) { this.chat.addErrorMessage('Usage: /addchild !roomId:server'); return; }
+        const room = this.chat.rooms.get(this.roomId);
+        if (!room?.isSpace) { this.chat.addErrorMessage('Current room is not a space'); return; }
+        try {
+            const childRoomId = args[0];
+            const via = [this.client.homeserver.replace(/^https?:\/\//, '').split(':')[0]];
+            const result = await this.client.addSpaceChild(this.roomId, childRoomId, via);
+            if (!result) throw new Error('Server refused');
+            room.spaceChildren = await this.client.getSpaceChildren(this.roomId);
+            this.chat.updateChannelList();
+            this.chat.addSystemMessage(`Added ${childRoomId} to space`);
+        } catch (e) { this.chat.addErrorMessage(`Failed to add child: ${e.message}`); }
+    }
+
+    async removechild(args) {
+        if (!this.roomId) { this.chat.addErrorMessage('Not in a room'); return; }
+        if (!args[0]) { this.chat.addErrorMessage('Usage: /removechild !roomId:server'); return; }
+        const room = this.chat.rooms.get(this.roomId);
+        if (!room?.isSpace) { this.chat.addErrorMessage('Current room is not a space'); return; }
+        try {
+            const result = await this.client.removeSpaceChild(this.roomId, args[0]);
+            if (!result) throw new Error('Server refused');
+            room.spaceChildren = await this.client.getSpaceChildren(this.roomId);
+            this.chat.updateChannelList();
+            this.chat.addSystemMessage(`Removed ${args[0]} from space`);
+        } catch (e) { this.chat.addErrorMessage(`Failed to remove child: ${e.message}`); }
+    }
+
+    async children() {
+        if (!this.roomId) { this.chat.addErrorMessage('Not in a room'); return; }
+        const room = this.chat.rooms.get(this.roomId);
+        if (!room?.isSpace) { this.chat.addErrorMessage('Current room is not a space'); return; }
+        try {
+            const children = await this.client.getSpaceChildren(this.roomId);
+            if (!children || children.length === 0) {
+                this.chat.addSystemMessage('This space has no children');
+                return;
+            }
+            this.chat.addSystemMessage(`Space children (${children.length}):`);
+            for (const child of children) {
+                this.chat.addSystemMessage(`  • ${child.roomId}${child.suggested ? ' (suggested)' : ''}`);
+            }
+        } catch (e) { this.chat.addErrorMessage(`Failed to get children: ${e.message}`); }
+    }
+
     async quit() {
+        await this.chat.disconnect();
+    }
+
+    async logout() {
+        this.chat.clearStoredCredentials();
+        this.chat.addSystemMessage('Saved credentials cleared');
         await this.chat.disconnect();
     }
 
@@ -294,6 +363,10 @@ export class CommandHandler {
             '         /create <Room Name>',
             '         /resolve #room:server',
             '         /upgrade <version>   — upgrade room to new version (mod)',
+            'Spaces:  /space <Space Name>  — create a new space',
+            '         /addchild !roomId:server  — add room to space',
+            '         /removechild !roomId:server',
+            '         /children  — list rooms in current space',
             'Profile: /nick <name>',
             '         /profile [@user:server]      (alias: /me)',
             '         /timezone [tz|@user:server]  (alias: /tz)',
@@ -309,6 +382,7 @@ export class CommandHandler {
             '         /delete <eventId> [reason]  (alias: /del)',
             '         /react <eventId> <emoji>',
             'Other:   /quit',
+            '         /logout  — disconnect and clear saved credentials',
             '─── Right-click shortcuts ────────────────────────────────',
             'Messages: react, edit, delete, copy event ID',
             'Users:    view profile, kick, ban',

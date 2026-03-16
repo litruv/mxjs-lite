@@ -10,7 +10,7 @@ export class RoomState {
         this.roomId = roomId;
         this.alias = alias;
         this.displayName = alias || roomId.split(':')[0].replace('!', '#');
-        /** @type {Map<string, {displayName: string|null, powerLevel: number}>} */
+        /** @type {Map<string, {displayName: string|null, powerLevel: number, avatarUrl: string|null}>} */
         this.members = new Map();
         /** @type {{users: Object<string, number>, usersDefault: number}} */
         this.powerLevels = { users: {}, usersDefault: 0 };
@@ -20,6 +20,8 @@ export class RoomState {
         this.typingTimeouts = new Map();
         /** @type {string|null} */
         this.lastReadEventId = null;
+        /** @type {string|null} The event_id of the most recent message received for this room (from sync). */
+        this.latestEventId = null;
         this.unreadCount = 0;
         /** @type {boolean} */
         this.historyLoaded = false;
@@ -29,6 +31,10 @@ export class RoomState {
         this.renderedEventIds = new Set();
         /** @type {HTMLElement|null} */
         this.messagesEl = null;
+        /** @type {boolean} Whether this room is a Matrix Space. */
+        this.isSpace = false;
+        /** @type {Array<{roomId: string, via: string[], order: string|null, suggested: boolean}>|null} Child rooms if this is a space. */
+        this.spaceChildren = null;
     }
 
     /**
@@ -43,12 +49,14 @@ export class RoomState {
      * @param {string} userId
      * @param {string|null} displayName
      * @param {number} [powerLevel]
+     * @param {string|null} [avatarUrl]
      */
-    setMember(userId, displayName, powerLevel) {
+    setMember(userId, displayName, powerLevel, avatarUrl) {
         const existing = this.members.get(userId);
         this.members.set(userId, {
             displayName: displayName ?? existing?.displayName ?? null,
-            powerLevel: powerLevel ?? existing?.powerLevel ?? this.getPowerLevel(userId)
+            powerLevel: powerLevel ?? existing?.powerLevel ?? this.getPowerLevel(userId),
+            avatarUrl: avatarUrl ?? existing?.avatarUrl ?? null
         });
     }
 

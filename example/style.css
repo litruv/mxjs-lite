@@ -118,6 +118,16 @@ body {
 
 .channel-item:hover  { background: #44475a; color: #f8f8f2; }
 .channel-item.active { background: #44475a; color: #bd93f9; font-weight: 600; }
+.channel-item.space { font-style: italic; }
+.channel-item.tombstoned { opacity: 0.5; text-decoration: line-through; }
+.channel-item.channel-child {
+    font-size: 12px;
+    color: #6272a4;
+}
+.channel-item[data-depth="1"] { padding-left: 24px; }
+.channel-item[data-depth="2"] { padding-left: 36px; }
+.channel-item[data-depth="3"] { padding-left: 48px; }
+.channel-item[data-depth="4"] { padding-left: 60px; }
 
 .unread-badge {
     background: #bd93f9;
@@ -166,10 +176,22 @@ body {
     user-select: none;
     color: #f8f8f2;
     transition: background 0.1s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 
 .user-item:hover { background: #44475a; }
 .user-item.self  { color: #50fa7b; font-weight: 600; }
+
+.user-avatar {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    object-fit: cover;
+    background: #44475a;
+}
 
 .typing-indicator {
     color: #6272a4;
@@ -246,6 +268,16 @@ body {
 
 .message.mentioned:hover {
     background: rgba(189, 147, 249, 0.13);
+}
+
+.message-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    object-fit: cover;
+    background: #44475a;
+    align-self: flex-start;
 }
 
 .message-time {
@@ -327,7 +359,7 @@ body {
     display: flex;
     flex-wrap: wrap;
     gap: 4px;
-    padding: 2px 0 2px 146px;
+    padding: 2px 0 2px 188px;
 }
 
 .reaction-pill {

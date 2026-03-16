@@ -90,7 +90,7 @@ export const Html = (Base) => class extends Base {
   /**
    * Interprets an `m.room.member` event and returns a structured description of the membership change.
    * @param {Object} event - A Matrix `m.room.member` state event.
-   * @returns {{type: "join"|"rename"|"leave"|"kick"|"ban"|"unknown", userId: string, displayName: string|null, prevDisplayName: string|null, kicker: string|null}|null}
+   * @returns {{type: "join"|"rename"|"avatar"|"leave"|"kick"|"ban"|"unknown", userId: string, displayName: string|null, prevDisplayName: string|null, avatarUrl: string|null, prevAvatarUrl?: string|null, kicker: string|null}|null}
    *   Returns `null` if the event is not an `m.room.member` type or produces no meaningful change.
    */
   getMembershipChange(event) {
@@ -101,21 +101,26 @@ export const Html = (Base) => class extends Base {
     const prev = prevContent?.membership;
     const displayName = event.content?.displayname ?? null;
     const prevDisplayName = prevContent?.displayname ?? null;
+    const avatarUrl = event.content?.avatar_url ?? null;
+    const prevAvatarUrl = prevContent?.avatar_url ?? null;
     const kicker = event.sender !== userId ? event.sender : null;
 
     if (current === "join" && prev !== "join") {
-      return { type: "join", userId, displayName, prevDisplayName: null, kicker: null };
+      return { type: "join", userId, displayName, prevDisplayName: null, avatarUrl, kicker: null };
     } else if (current === "join" && prev === "join") {
       if (prevDisplayName && displayName !== prevDisplayName) {
-        return { type: "rename", userId, displayName, prevDisplayName, kicker: null };
+        return { type: "rename", userId, displayName, prevDisplayName, avatarUrl, kicker: null };
+      }
+      if (prevAvatarUrl !== avatarUrl) {
+        return { type: "avatar", userId, displayName, prevDisplayName, avatarUrl, prevAvatarUrl, kicker: null };
       }
       return null;
     } else if (current === "leave" && prev === "join") {
-      return { type: kicker ? "kick" : "leave", userId, displayName, prevDisplayName, kicker };
+      return { type: kicker ? "kick" : "leave", userId, displayName, prevDisplayName, avatarUrl, kicker };
     } else if (current === "ban") {
-      return { type: "ban", userId, displayName, prevDisplayName, kicker };
+      return { type: "ban", userId, displayName, prevDisplayName, avatarUrl, kicker };
     }
-    return { type: "unknown", userId, displayName, prevDisplayName, kicker: null };
+    return { type: "unknown", userId, displayName, prevDisplayName, avatarUrl, kicker: null };
   }
 
   /**

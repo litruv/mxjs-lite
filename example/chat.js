@@ -16,6 +16,8 @@ export class ChatClient {
         this.client       = null;
         /** @type {Map<string, RoomState>} */
         this.rooms        = new Map();
+        /** @type {Set<string>} Track which spaces are expanded in the UI */
+        this.expandedSpaces = new Set();
         /** @type {string|null} */
         this.activeRoomId = null;
         this.password     = null;
@@ -101,6 +103,8 @@ export class ChatClient {
             e.stopPropagation();
             this.#showChannelContextMenu(e.clientX, e.clientY, item.dataset.roomId);
         });
+        
+        this.#tryAutoLogin();
     }
 
     get #connectLabel() {
@@ -117,6 +121,76 @@ export class ChatClient {
         this.elements.usernameInput.style.display = guest ? 'none' : '';
         this.elements.passwordInput.style.display = guest ? 'none' : '';
         this.elements.connectBtn.textContent = this.#connectLabel;
+    }
+
+    /**
+     * Saves credentials to localStorage.
+     * @param {string} homeserver
+     * @param {string} username
+     * @param {string} password
+     * @param {string} roomAlias
+     */
+    #saveCredentials(homeserver, username, password, roomAlias) {
+        try {
+            localStorage.setItem('mxjs_credentials', JSON.stringify({
+                homeserver,
+                username,
+                password,
+                roomAlias,
+                authMode: this.authMode
+            }));
+        } catch (e) {
+            console.warn('Failed to save credentials:', e);
+        }
+    }
+
+    /**
+     * Loads credentials from localStorage.
+     * @returns {{homeserver: string, username: string, password: string, roomAlias: string, authMode: string}|null}
+     */
+    #loadCredentials() {
+        try {
+            const json = localStorage.getItem('mxjs_credentials');
+            return json ? JSON.parse(json) : null;
+        } catch (e) {
+            console.warn('Failed to load credentials:', e);
+            return null;
+        }
+    }
+
+    /**
+     * Clears saved credentials from localStorage.
+     */
+    #clearCredentials() {
+        try {
+            localStorage.removeItem('mxjs_credentials');
+        } catch (e) {
+            console.warn('Failed to clear credentials:', e);
+        }
+    }
+
+    /**
+     * Public method to clear stored credentials (used by /logout command).
+     */
+    clearStoredCredentials() {
+        this.#clearCredentials();
+    }
+
+    /**
+     * Attempts auto-login if credentials are saved.
+     */
+    async #tryAutoLogin() {
+        const creds = this.#loadCredentials();
+        if (!creds) return;
+        
+        this.elements.homeserverInput.value = creds.homeserver;
+        this.elements.usernameInput.value = creds.username;
+        this.elements.passwordInput.value = creds.password;
+        this.elements.roomInput.value = creds.roomAlias;
+        this.setAuthMode(creds.authMode || 'login');
+        
+        this.addSystemMessage('Auto-connecting...');
+        await this.connect();
     }
 
     setStatus(status, text) {
@@ -160,6 +234,47 @@ export class ChatClient {
         const m = r?.members.get(userId);
         if (m?.displayName) return m.displayName;
         return this.client?.extractLocalpart(userId) ?? userId ?? '?';
+    }
+
+    /**
+     * Gets the avatar URL (mxc://) for a user, or null if not set.
+     * @param {string} userId
+     * @param {RoomState|null} [room]
+     * @returns {string|null}
+     */
+    getAvatarUrl(userId, room = null) {
+        const r = room ?? this.rooms.get(this.activeRoomId);
+        return r?.members.get(userId)?.avatarUrl ?? null;
+    }
+
+    /**
+     * Creates an avatar img element with error handling and lazy loading.
+     * Uses direct HTTP URLs like chat images do.
+     * @param {string} userId
+     * @param {RoomState|null} room
+     * @param {number} size - Avatar size in pixels
+     * @param {string} className - CSS class name
+     * @returns {HTMLImageElement}
+     */
+    #createAvatarEl(userId, room, size, className) {
+        const avatarUrl = this.getAvatarUrl(userId, room);
+        const displayName = this.getDisplayName(userId, room);
+        const avatarEl = Object.assign(document.createElement('img'), { className });
+        avatarEl.loading = 'lazy';
+        
+        const fallbackSvg = `data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}"%3E%3Crect width="${size}" height="${size}" fill="%2344475a"/%3E%3Ctext x="${size/2}" y="${size*0.7}" text-anchor="middle" font-family="sans-serif" font-size="${size*0.5}" fill="%23f8f8f2"%3E%3F%3C/text%3E%3C/svg%3E`;
+        
+        if (avatarUrl) {
+            const httpUrl = this.client.mxcToHttp(avatarUrl);
+            avatarEl.src = httpUrl || fallbackSvg;
+            avatarEl.alt = displayName;
+            avatarEl.onerror = () => { avatarEl.src = fallbackSvg; };
+        } else {
+            avatarEl.src = fallbackSvg;
+            avatarEl.alt = '?';
+        }
+        
+        return avatarEl;
     }
 
     /**
@@ -236,20 +351,78 @@ export class ChatClient {
 
     updateChannelList() {
         this.elements.channelList.innerHTML = '';
-        for (const [roomId, room] of this.rooms) {
+        const childRoomIds = new Set();
+        
+        // Collect all child room IDs from all spaces (to identify orphans)
+        for (const [, room] of this.rooms) {
+            if (room.isSpace && room.spaceChildren) {
+                for (const child of room.spaceChildren) {
+                    childRoomIds.add(child.roomId);
+                }
+            }
+        }
+        
+        /**
+         * Recursively renders a room and its children
+         * @param {string} roomId
+         * @param {number} depth
+         */
+        const renderRoom = (roomId, depth = 0) => {
+            const room = this.rooms.get(roomId);
+            if (!room) return;
+            
+            const isExpanded = this.expandedSpaces.has(roomId);
+            const hasChildren = room.isSpace && room.spaceChildren && room.spaceChildren.length > 0;
+            const prefix = room.tombstoneRoomId ? '⚰️ ' : room.isSpace ? '🏢 ' : '';
+            const arrow = hasChildren ? (isExpanded ? '▼ ' : '▶ ') : '';
+            
             const div = Object.assign(document.createElement('div'), {
-                className: 'channel-item' + (roomId === this.activeRoomId ? ' active' : '') + (room.tombstoneRoomId ? ' tombstoned' : ''),
-                textContent: (room.tombstoneRoomId ? '⚰️ ' : '') + room.displayName,
+                className: 'channel-item' + 
+                    (roomId === this.activeRoomId ? ' active' : '') + 
+                    (room.tombstoneRoomId ? ' tombstoned' : '') + 
+                    (room.isSpace ? ' space' : '') +
+                    (depth > 0 ? ' channel-child' : ''),
+                textContent: arrow + prefix + room.displayName,
             });
             div.dataset.roomId = roomId;
+            div.dataset.depth = String(depth);
+            
             if (room.unreadCount > 0) {
                 div.appendChild(Object.assign(document.createElement('span'), {
                     className: 'unread-badge',
                     textContent: String(room.unreadCount),
                 }));
             }
-            div.addEventListener('click', () => this.setActiveRoom(roomId));
+            
+            div.addEventListener('click', (e) => {
+                if (hasChildren && e.target === div) {
+                    // Toggle expand/collapse if clicking on the space itself
+                    if (isExpanded) {
+                        this.expandedSpaces.delete(roomId);
+                    } else {
+                        this.expandedSpaces.add(roomId);
+                    }
+                    this.updateChannelList();
+                } else {
+                    this.setActiveRoom(roomId);
+                }
+            });
+            
             this.elements.channelList.appendChild(div);
+            
+            // Render children if expanded
+            if (hasChildren && isExpanded) {
+                for (const child of room.spaceChildren) {
+                    renderRoom(child.roomId, depth + 1);
+                }
+            }
+        };
+        
+        // Render all top-level rooms (not children of any space)
+        for (const [roomId] of this.rooms) {
+            if (!childRoomIds.has(roomId)) {
+                renderRoom(roomId, 0);
+            }
         }
     }
 
@@ -275,11 +448,11 @@ export class ChatClient {
         sort(admins); sort(mods); sort(users);
 
         const makeItem = ({ userId, displayName }) => {
-            const div = Object.assign(document.createElement('div'), {
-                className: 'user-item' + (userId === this.client?.userId ? ' self' : ''),
-                textContent: displayName,
-            });
+            const div = Object.assign(document.createElement('div'), { className: 'user-item' + (userId === this.client?.userId ? ' self' : '') });
             div.dataset.userId = userId;
+            const avatarEl = this.#createAvatarEl(userId, room, 24, 'user-avatar');
+            const nameEl = Object.assign(document.createElement('span'), { textContent: displayName });
+            div.append(avatarEl, nameEl);
             return div;
         };
 
@@ -351,7 +524,9 @@ export class ChatClient {
         } else {
             contentEl.textContent = content;
         }
+        
         div.append(
+            this.#createAvatarEl(sender, room, 32, 'message-avatar'),
             Object.assign(document.createElement('span'), { className: 'message-time',   textContent: this.#formatTime(ts) }),
             Object.assign(document.createElement('span'), { className: `message-sender${sender === this.client?.userId ? ' self' : ''}`, textContent: this.getDisplayName(sender, room) }),
             contentEl,
@@ -368,12 +543,41 @@ export class ChatClient {
         const div = Object.assign(document.createElement('div'), { className: 'message' });
         div.dataset.eventId = eventId ?? '';
         div.dataset.sender  = sender;
+        
         div.append(
+            this.#createAvatarEl(sender, room, 32, 'message-avatar'),
             Object.assign(document.createElement('span'), { className: 'message-time',    textContent: this.#formatTime(ts) }),
             Object.assign(document.createElement('span'), { className: `message-sender${sender === this.client?.userId ? ' self' : ''}`, textContent: this.getDisplayName(sender, room) }),
             bodyEl,
         );
         return div;
+    }
+
+    /**
+     * Refreshes all avatar images for a specific user in the current room's message history.
+     * @param {RoomState} room
+     * @param {string} userId
+     */
+    #refreshAvatarsFor(room, userId) {
+        if (!room.messagesEl) return;
+        const avatarUrl = this.getAvatarUrl(userId, room);
+        const displayName = this.getDisplayName(userId, room);
+        const messages = room.messagesEl.querySelectorAll(`[data-sender="${userId}"]`);
+        const fallbackSvg = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"%3E%3Crect width="32" height="32" fill="%2344475a"/%3E%3Ctext x="16" y="20" text-anchor="middle" font-family="sans-serif" font-size="14" fill="%23f8f8f2"%3E%3F%3C/text%3E%3C/svg%3E';
+        
+        for (const msgEl of messages) {
+            const avatarEl = msgEl.querySelector('.message-avatar');
+            if (!avatarEl) continue;
+            if (avatarUrl) {
+                const httpUrl = this.client.mxcToHttp(avatarUrl);
+                avatarEl.src = httpUrl || fallbackSvg;
+                avatarEl.alt = displayName;
+                avatarEl.onerror = () => { avatarEl.src = fallbackSvg; };
+            } else {
+                avatarEl.src = fallbackSvg;
+                avatarEl.alt = '?';
+            }
+        }
     }
 
     #showMessageContextMenu(x, y, eventId, sender, room) {
@@ -466,7 +670,17 @@ export class ChatClient {
         const room   = this.rooms.get(roomId);
         if (!room) return;
         const canMod = room.getPowerLevel(this.client?.userId) >= 50;
+        const hasUnread = room.unreadCount > 0;
+        
         this.contextMenu.show(x, y, [
+            ...(hasUnread ? [{ label: '✔️ Mark as Read', action: async () => {
+                if (room.isSpace) {
+                    await this.#markSpaceAsRead(roomId);
+                } else {
+                    await this.#markRoomAsRead(roomId);
+                }
+            }}] : []),
+            ...(hasUnread ? [null] : []),
             ...(canMod ? [{ label: '✏️ Rename…', action: async () => {
                 const name = prompt('New room name:', room.displayName);
                 if (!name?.trim()) return;
@@ -502,6 +716,60 @@ export class ChatClient {
                 } catch (e) { this.addErrorMessage(`Failed to leave: ${e.message}`); }
             }},
         ]);
+    }
+
+    /**
+     * Marks a single room as read by sending read markers for the last event.
+     * @param {string} roomId
+     */
+    async #markRoomAsRead(roomId) {
+        const room = this.rooms.get(roomId);
+        if (!room) return;
+        
+        // Find the last event in the room
+        const messages = room.messagesEl?.querySelectorAll('[data-event-id]');
+        const eventId = messages?.length
+            ? messages[messages.length - 1].dataset.eventId
+            : room.latestEventId;
+        
+        if (eventId) {
+            try {
+                await this.client.setReadMarkers(roomId, eventId, eventId);
+                room.lastReadEventId = eventId;
+                room.unreadCount = 0;
+                this.updateChannelList();
+            } catch (e) {
+                console.error('Failed to mark as read:', e);
+            }
+        }
+    }
+
+    /**
+     * Recursively marks a space and all its children as read.
+     * @param {string} spaceId
+     */
+    async #markSpaceAsRead(spaceId) {
+        const space = this.rooms.get(spaceId);
+        if (!space) return;
+        
+        // Mark the space itself as read
+        await this.#markRoomAsRead(spaceId);
+        
+        // Recursively mark all children as read
+        if (space.spaceChildren) {
+            for (const child of space.spaceChildren) {
+                const childRoom = this.rooms.get(child.roomId);
+                if (!childRoom) continue;
+                
+                if (childRoom.isSpace) {
+                    // Recursively mark subspaces
+                    await this.#markSpaceAsRead(child.roomId);
+                } else {
+                    // Mark regular room as read
+                    await this.#markRoomAsRead(child.roomId);
+                }
+            }
+        }
     }
 
     #showUserContextMenu(x, y, userId) {
@@ -576,6 +844,31 @@ export class ChatClient {
             if (!msgEl.querySelector('.edited-tag'))
                 msgEl.appendChild(Object.assign(document.createElement('span'), { className: 'edited-tag', textContent: '(edited)' }));
         }
+        // Sync unread count with server-side fully-read marker
+        await this.#syncUnreadCount(room);
+        this.updateChannelList();
+    }
+
+    /**
+     * Recalculates unreadCount based on how many rendered events come after the
+     * m.fully_read marker. If `knownId` is supplied the API round-trip is skipped.
+     * @param {RoomState} room
+     * @param {string|null} [knownId] - Pre-fetched fully_read event ID, or null to fetch from server.
+     */
+    async #syncUnreadCount(room, knownId = null) {
+        const fullyReadId = knownId ?? (await this.client.getRoomAccountData(room.roomId, 'm.fully_read').catch(() => null))?.event_id ?? null;
+        room.lastReadEventId = fullyReadId;
+        
+        if (!fullyReadId) return; // No marker — leave count as-is
+        
+        const allEvents = [...(room.messagesEl?.querySelectorAll('[data-event-id]') ?? [])];
+        const markerIdx = allEvents.findIndex(el => el.dataset.eventId === fullyReadId);
+        
+        if (markerIdx === -1) {
+            // Marker not in the loaded history — assume all visible are unread
+            return;
+        }
+        room.unreadCount = allEvents.length - markerIdx - 1;
     }
 
     /**
@@ -650,6 +943,10 @@ export class ChatClient {
             if (!joinResult) throw new Error(`Failed to join room – check alias and server`);
 
             this.addSystemMessage(`Connected as ${authResult.userId}`);
+            
+            if (this.authMode === 'login') {
+                this.#saveCredentials(homeserver, username, password, roomAlias);
+            }
 
             this.#bindClientEvents(joinResult.roomId, roomAlias);
 
@@ -674,6 +971,7 @@ export class ChatClient {
             const id = this.client.userId;
             await this.client.deactivateAccount(this.password);
             this.addSystemMessage(`Account ${id} deactivated`);
+            this.#clearCredentials();
         } else {
             this.addSystemMessage('Disconnected');
         }
@@ -681,6 +979,7 @@ export class ChatClient {
         if (this.typingTimeout) { clearTimeout(this.typingTimeout); this.typingTimeout = null; }
         this.rooms.forEach(r => r.destroy());
         this.rooms.clear();
+        
         this.password     = null;
         this.isNewAccount = false;
 
@@ -700,10 +999,25 @@ export class ChatClient {
         const state = await this.client.getRoomAllState(room.roomId);
         if (!state) return;
         if (state.powerLevels) room.applyPowerLevels(state.powerLevels);
-        room.members.clear();
-        for (const m of state.members) {
-            if (m.membership === 'join') room.setMember(m.userId, m.displayName, null);
+        
+        const createEvent = await this.client.getRoomState(room.roomId, 'm.room.create');
+        if (createEvent) {
+            room.isSpace = this.client.isSpaceRoom(createEvent);
+            if (room.isSpace) {
+                room.spaceChildren = await this.client.getSpaceChildren(room.roomId);
+                // Expand the space when entering it
+                this.expandedSpaces.add(room.roomId);
+            }
         }
+        
+        const membersData = await this.client.getJoinedMembers(room.roomId);
+        room.members.clear();
+        if (membersData?.members) {
+            for (const m of membersData.members) {
+                room.setMember(m.userId, m.displayName, null, m.avatarUrl);
+            }
+        }
+        
         if (!room.displayName || room.displayName === room.roomId) {
             room.displayName = state.canonicalAlias || state.name || room.displayName;
         }
@@ -736,8 +1050,16 @@ export class ChatClient {
             this.addErrorMessage('Sync error, retrying…');
         });
 
-        c.on(ClientEvents.RoomJoin, ({ roomId }) => {
-            this.ensureRoom(roomId);
+        c.on(ClientEvents.RoomJoin, async ({ roomId }) => {
+            const room = this.ensureRoom(roomId);
+            // Check if it's a space and load children
+            const createEvent = await c.getRoomState(roomId, 'm.room.create');
+            if (createEvent && c.isSpaceRoom(createEvent)) {
+                room.isSpace = true;
+                room.spaceChildren = await c.getSpaceChildren(roomId);
+                // Expand spaces by default
+                this.expandedSpaces.add(roomId);
+            }
             this.updateChannelList();
         });
 
@@ -752,6 +1074,7 @@ export class ChatClient {
         c.on(ClientEvents.MessageCreate, ({ roomId, event }) => {
             const room = this.rooms.get(roomId);
             if (!room) return;
+            if (event.event_id) room.latestEventId = event.event_id;
             this.renderEvent(room, event);
             if (c.isMention(event, c.userId)) {
                 c.emit('mention', { roomId, event, room });
@@ -764,6 +1087,13 @@ export class ChatClient {
                 c.setReadMarkers(roomId, event.event_id, event.event_id).catch(() => {});
                 room.lastReadEventId = event.event_id;
             }
+        });
+
+        c.on(ClientEvents.RoomAccountDataUpdate, ({ roomId, type, content }) => {
+            if (type !== 'm.fully_read') return;
+            const room = this.rooms.get(roomId);
+            if (!room) return;
+            this.#syncUnreadCount(room, content?.event_id ?? null).then(() => this.updateChannelList());
         });
 
         c.on(ClientEvents.MessageUpdate, ({ roomId, edits, newBody }) => {
@@ -800,11 +1130,14 @@ export class ChatClient {
             const isActive = roomId === this.activeRoomId;
             const name = change.displayName || this.getDisplayName(change.userId, room);
             if (change.type === 'join') {
-                room.setMember(change.userId, change.displayName, null);
+                room.setMember(change.userId, change.displayName, null, change.avatarUrl);
                 if (isActive) this.addSystemMessage(`${name} joined`);
             } else if (change.type === 'rename') {
-                room.setMember(change.userId, change.displayName, null);
+                room.setMember(change.userId, change.displayName, null, change.avatarUrl);
                 if (isActive) this.addSystemMessage(`${change.prevDisplayName} → ${name}`);
+            } else if (change.type === 'avatar') {
+                room.setMember(change.userId, change.displayName, null, change.avatarUrl);
+                if (isActive) this.#refreshAvatarsFor(room, change.userId);
             } else if (change.type === 'leave') {
                 room.members.delete(change.userId);
                 if (isActive) this.addSystemMessage(`${name} left`);

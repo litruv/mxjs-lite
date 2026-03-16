@@ -32,6 +32,53 @@ export const Media = (Base) => class extends Base {
   }
 
   /**
+   * Downloads media from an mxc:// URI as a Blob with authentication.
+   * Tries thumbnail first (if dimensions provided), then falls back to full download.
+   * @param {string} mxcUrl - An `mxc://` URI.
+   * @param {Object} [options] - Optional download options.
+   * @param {number} [options.width] - Thumbnail width (if omitted, downloads full size).
+   * @param {number} [options.height] - Thumbnail height.
+   * @param {string} [options.method="crop"] - Thumbnail method: "crop" or "scale".
+   * @returns {Promise<Blob|null>} The media as a Blob, or `null` on failure.
+   */
+  async downloadMediaAsBlob(mxcUrl, options = {}) {
+    if (!mxcUrl?.startsWith("mxc://")) return null;
+    const path = mxcUrl.slice(6);
+    const headers = {};
+    if (this.accessToken) headers.Authorization = `Bearer ${this.accessToken}`;
+
+    try {
+      let url;
+      if (options.width || options.height) {
+        const w = options.width || 320;
+        const h = options.height || 240;
+        const m = options.method || "crop";
+        url = `${this.homeserver}/_matrix/media/v3/thumbnail/${path}?width=${w}&height=${h}&method=${m}`;
+      } else {
+        url = `${this.homeserver}/_matrix/media/v3/download/${path}`;
+      }
+
+      const response = await fetch(url, { headers });
+      if (!response.ok) {
+        if (options.width && !options.fallbackAttempted) {
+          return this.downloadMediaAsBlob(mxcUrl, { ...options, width: undefined, height: undefined, fallbackAttempted: true });
+        }
+        return null;
+      }
+
+      const contentType = response.headers.get("Content-Type");
+      if (contentType?.startsWith("application/json")) {
+        return null;
+      }
+
+      return await response.blob();
+    } catch (e) {
+      cerr("download blob:", e);
+      return null;
+    }
+  }
+
+  /**
    * Uploads binary media to the homeserver's media repository.
    * @param {Blob|ArrayBuffer|FormData} data - The media data to upload.
    * @param {string} contentType - MIME type (e.g. `"image/png"`).
