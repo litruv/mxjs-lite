@@ -471,12 +471,6 @@ function generateIndex() {
   md += `// Start syncing\nconst syncData = await client.sync();\nclient.processSyncData(syncData);\n`;
   md += `\`\`\`\n\n`;
   
-  md += `## Quick Links\n\n`;
-  md += `- [Getting Started](../examples/QuickStart.md)\n`;
-  md += `- [Basic Usage](../examples/BasicUsage.md)\n`;
-  md += `- [Advanced Examples](../examples/AdvancedExample.md)\n`;
-  md += `- [Run Example Tests](../../testing/test.js)\n\n`;
-  
   return md;
 }
 
