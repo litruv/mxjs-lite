@@ -1,5 +1,8 @@
 name: Deploy Documentation to Wiki
 
+# SETUP REQUIRED: Create a Personal Access Token with 'repo' scope and add it as a secret named 'WIKI_TOKEN'
+# See .github/WIKI_DEPLOYMENT.md for detailed setup instructions
+
 on:
   push:
     branches:
@@ -28,7 +31,7 @@ jobs:
         
       - name: Clone wiki repository
         run: |
-          git clone https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.wiki.git wiki
+          git clone https://x-access-token:${{ secrets.WIKI_TOKEN }}@github.com/${{ github.repository }}.wiki.git wiki
           
       - name: Copy documentation to wiki
         run: |
