@@ -1,7 +1,7 @@
 import { cerr, enc, M_REL, M_TEXT, M_HTML, M_MSG, M_THREAD } from './constants.js';
 
 /**
- * Mixin adding Matrix Threads support (MSC3440 / Matrix v1.3) to a base client class.
+ * Matrix Threads support (MSC3440 / Matrix v1.3).
  * Threads are conversations branched off a root message using the `m.thread` relation type.
  *
  * @template {typeof import('./BaseMxjsClient.js').BaseMxjsClient} T

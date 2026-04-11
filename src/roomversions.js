@@ -1,7 +1,7 @@
 import { cerr, enc, M_CREATE, M_TOMBSTONE } from './constants.js';
 
 /**
- * Mixin adding Matrix room version upgrade support (MSC1501) to a base client class.
+ * Matrix room version upgrade support (MSC1501).
  * Provides methods to upgrade a room, inspect its version, follow tombstone chains,
  * and read predecessor information from `m.room.create`.
  *

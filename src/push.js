@@ -1,7 +1,7 @@
 import { cerr, enc, PUSH_RULE_TOMBSTONE } from './constants.js';
 
 /**
- * Mixin adding push notification methods to a base client class.
+ * Push notification methods.
  * @template {typeof import('./BaseMxjsClient.js').BaseMxjsClient} T
  * @param {T} Base
  * @returns {T}

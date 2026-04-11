@@ -1,7 +1,7 @@
 import { cerr, enc } from './constants.js';
 
 /**
- * Mixin adding room management methods to a base client class.
+ * Room management methods.
  * @template {typeof import('./BaseMxjsClient.js').BaseMxjsClient} T
  * @param {T} Base
  * @returns {T}

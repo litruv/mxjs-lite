@@ -1,7 +1,7 @@
 import { cerr, enc, M_MSG } from './constants.js';
 
 /**
- * Mixin adding media upload and retrieval methods to a base client class.
+ * Media upload and retrieval methods.
  * @template {typeof import('./BaseMxjsClient.js').BaseMxjsClient} T
  * @param {T} Base
  * @returns {T}
@@ -167,6 +167,59 @@ export const Media = (Base) => class extends Base {
           };
     } catch (e) {
       cerr("url preview:", e);
+      return null;
+    }
+  }
+
+  /**
+   * Gets information about a media file from its mxc:// URI.
+   * @param {string} mxcUri - An `mxc://` URI
+   * @returns {Promise<{content_type: string|null, size: number|null}|null>}
+   */
+  async getMediaInfo(mxcUri) {
+    if (!mxcUri?.startsWith("mxc://")) return null;
+    try {
+      const httpUrl = this.mxcToHttp(mxcUri);
+      if (!httpUrl) return null;
+      
+      const headers = {};
+      if (this.accessToken) headers.Authorization = `Bearer ${this.accessToken}`;
+      
+      const response = await fetch(httpUrl, { method: 'HEAD', headers });
+      if (!response.ok) return null;
+      
+      return {
+        content_type: response.headers.get('Content-Type') || null,
+        size: parseInt(response.headers.get('Content-Length') || '0', 10) || null,
+      };
+    } catch (e) {
+      cerr("getMediaInfo:", e);
+      return null;
+    }
+  }
+
+  /**
+   * Gets thumbnail URLs for a media file.
+   * @param {string} mxcUri - An `mxc://` URI
+   * @param {Object} [size] - Desired thumbnail size
+   * @param {number} [size.width=320] - Thumbnail width
+   * @param {number} [size.height=240] - Thumbnail height
+   * @returns {Promise<{[key: string]: string}|null>} Object with thumbnail URLs by size
+   */
+  async getThumbnail(mxcUri, size = {}) {
+    if (!mxcUri?.startsWith("mxc://")) return null;
+    try {
+      const width = size.width || 320;
+      const height = size.height || 240;
+      const url = this.mxcToHttpThumbnail(mxcUri, width, height);
+      
+      if (!url) return null;
+      
+      return {
+        [`${width}x${height}`]: url,
+      };
+    } catch (e) {
+      cerr("getThumbnail:", e);
       return null;
     }
   }

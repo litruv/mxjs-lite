@@ -17,8 +17,7 @@ import {
 } from './constants.js';
 
 /**
- * Mixin adding room event methods to a base client class.
- * Covers sending, editing, redacting, reacting, and fetching room events and state.
+ * Room event methods for sending, editing, redacting, reacting, and fetching room events and state.
  * @template {typeof import('./BaseMxjsClient.js').BaseMxjsClient} T
  * @param {T} Base
  * @returns {T}

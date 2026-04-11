@@ -1,6 +1,6 @@
 {
   "name": "@litruv/mxjs-lite",
-  "version": "1.3.0",
+  "version": "1.2.1",
   "description": "Lightweight Matrix protocol client library",
   "main": "mxjs-lite.js",
   "module": "mxjs-lite.js",
@@ -12,7 +12,10 @@
   ],
   "scripts": {
     "build": "rollup -c rollup.config.js",
-    "test": "node test/run-tests.js",
+    "test": "vitest run test/api-coverage.test.js && node test/update-badge.js",
+    "test:docs": "node testing/test.js",
+    "docs:generate": "node testing/autodocs.js",
+    "docs:coverage": "node testing/doc-coverage.js",
     "prepublishOnly": "npm run build"
   },
   "keywords": [

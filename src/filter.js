@@ -1,7 +1,7 @@
 import { cerr, enc } from './constants.js';
 
 /**
- * Mixin adding filter API methods to a base client class.
+ * Filter API methods.
  * @template {typeof import('./BaseMxjsClient.js').BaseMxjsClient} T
  * @param {T} Base
  * @returns {T}

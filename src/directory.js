@@ -1,7 +1,7 @@
 import { cerr, enc } from './constants.js';
 
 /**
- * Mixin adding room directory methods to a base client class.
+ * Room directory methods.
  * @template {typeof import('./BaseMxjsClient.js').BaseMxjsClient} T
  * @param {T} Base
  * @returns {T}
@@ -180,6 +180,27 @@ export const Directory = (Base) => class extends Base {
       return await this.api(`/room_summary/${enc(roomIdOrAlias)}${query}`);
     } catch (e) {
       cerr("getRoomSummary:", e);
+      return null;
+    }
+  }
+
+  /**
+   * Finds the homeserver for a given user or server name.
+   * @param {Object} [options] - Query options
+   * @param {string} [options.server_name] - Server name to look up
+   * @returns {Promise<{server: string}|null>} Server information, or null on failure
+   */
+  async findHomeServer(options = {}) {
+    try {
+      const serverName = options.server_name || options.servername || 'matrix.org';
+      // Use .well-known discovery
+      const response = await fetch(`https://${serverName}/.well-known/matrix/client`);
+      if (!response.ok) return null;
+      const data = await response.json();
+      const baseUrl = data['m.homeserver']?.base_url;
+      return baseUrl ? { server: baseUrl } : null;
+    } catch (e) {
+      cerr("findHomeServer:", e);
       return null;
     }
   }

@@ -1,7 +1,7 @@
 import { cerr, M_LPWD, M_IDUSER } from './constants.js';
 
 /**
- * Mixin adding Matrix authentication methods to a base client class.
+ * Matrix authentication methods.
  * @template {typeof import('./BaseMxjsClient.js').BaseMxjsClient} T
  * @param {T} Base
  * @returns {T & typeof AuthClass}

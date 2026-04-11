@@ -1,7 +1,7 @@
 import { cerr, enc, M_INVITE_PERM_CONFIG } from './constants.js';
 
 /**
- * Mixin adding account data methods to a base client class.
+ * Account data methods.
  * @template {typeof import('./BaseMxjsClient.js').BaseMxjsClient} T
  * @param {T} Base
  * @returns {T}

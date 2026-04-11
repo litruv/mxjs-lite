@@ -17,7 +17,7 @@ const M_PLEVEL = 'm.room.power_levels';
 const M_ALIAS  = 'm.room.canonical_alias';
 
 /**
- * Mixin adding Matrix /sync polling and sync data processing to a base client class.
+ * Matrix /sync polling and sync data processing.
  * @template {typeof import('./BaseMxjsClient.js').BaseMxjsClient} T
  * @param {T} Base
  * @returns {T}

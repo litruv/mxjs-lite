@@ -1,7 +1,7 @@
 import { cerr } from './constants.js';
 
 /**
- * Mixin adding server capabilities methods to a base client class.
+ * Server capabilities methods.
  * @template {typeof import('./BaseMxjsClient.js').BaseMxjsClient} T
  * @param {T} Base
  * @returns {T}

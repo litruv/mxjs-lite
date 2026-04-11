@@ -1,7 +1,7 @@
 import { cerr } from './constants.js';
 
 /**
- * Mixin adding an automatic long-poll sync loop to a base client class.
+ * Automatic long-poll sync loop.
  * Depends on the {@link Sync} mixin being present in the chain.
  *
  * @template {typeof import('./BaseMxjsClient.js').BaseMxjsClient} T

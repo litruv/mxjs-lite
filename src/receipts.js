@@ -1,7 +1,7 @@
 import { cerr, enc } from './constants.js';
 
 /**
- * Mixin adding typing notifications and read receipts to a base client class.
+ * Typing notifications and read receipts.
  * @template {typeof import('./BaseMxjsClient.js').BaseMxjsClient} T
  * @param {T} Base
  * @returns {T}

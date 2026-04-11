@@ -1,7 +1,7 @@
 import { cerr } from './constants.js';
 
 /**
- * Mixin adding VoIP methods to a base client class.
+ * VoIP methods.
  * @template {typeof import('./BaseMxjsClient.js').BaseMxjsClient} T
  * @param {T} Base
  * @returns {T}

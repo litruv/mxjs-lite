@@ -1,7 +1,7 @@
 import { cerr, enc, M_SPACE, M_SPACE_CHILD, M_SPACE_PARENT } from './constants.js';
 
 /**
- * Mixin adding Matrix Spaces support (MSC1772 / Matrix v1.2) to a base client class.
+ * Matrix Spaces support (MSC1772 / Matrix v1.2).
  * Spaces are rooms with `type: 'm.space'` in their `m.room.create` content.
  * Children and parents are expressed via `m.space.child` / `m.space.parent` state events.
  *

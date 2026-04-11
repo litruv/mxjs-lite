@@ -14,7 +14,7 @@ import {
 } from './constants.js';
 
 /**
- * Mixin adding HTML utility methods and event inspection helpers to a base client class.
+ * HTML utility methods and event inspection helpers.
  * @template {typeof import('./BaseMxjsClient.js').BaseMxjsClient} T
  * @param {T} Base
  * @returns {T}
@@ -175,6 +175,51 @@ export const Html = (Base) => class extends Base {
       return `<a href="${MATRIX_TO}${enc(userId)}">@${this._escapeHtml(displayName)}</a>`;
     });
     return result === text ? null : result;
+  }
+
+  /**
+   * Converts Markdown text to HTML.
+   * This is a basic implementation supporting common markdown syntax.
+   * @param {string} markdown - Markdown text to convert
+   * @returns {string} HTML-formatted string
+   */
+  formatMarkdownToHtml(markdown) {
+    if (!markdown) return '';
+    
+    let html = markdown;
+    
+    // Headers
+    html = html.replace(/^##### (.+)$/gm, '<h5>$1</h5>');
+    html = html.replace(/^#### (.+)$/gm, '<h4>$1</h4>');
+    html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
+    html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
+    html = html.replace(/^# (.+)$/gm, '<h1>$1</h1>');
+    
+    // Bold and Italic
+    html = html.replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>');
+    html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
+    html = html.replace(/___(.+?)___/g, '<strong><em>$1</em></strong>');
+    html = html.replace(/__(.+?)__/g, '<strong>$1</strong>');
+    html = html.replace(/_(.+?)_/g, '<em>$1</em>');
+    
+    // Code blocks
+    html = html.replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>');
+    html = html.replace(/`(.+?)`/g, '<code>$1</code>');
+    
+    // Links
+    html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>');
+    
+    // Line breaks
+    html = html.replace(/\n\n/g, '</p><p>');
+    html = html.replace(/\n/g, '<br>');
+    
+    // Wrap in paragraphs if not already wrapped
+    if (!html.startsWith('<')) {
+      html = '<p>' + html + '</p>';
+    }
+    
+    return html;
   }
 
   /**

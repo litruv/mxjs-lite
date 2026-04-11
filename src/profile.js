@@ -1,7 +1,7 @@
 import { cerr, enc, M_TZ } from './constants.js';
 
 /**
- * Mixin adding user profile and presence methods to a base client class.
+ * User profile and presence methods.
  * @template {typeof import('./BaseMxjsClient.js').BaseMxjsClient} T
  * @param {T} Base
  * @returns {T}
@@ -184,6 +184,27 @@ export const Profile = (Base) => class extends Base {
     } catch (e) {
       cerr("set presence:", e);
       return false;
+    }
+  }
+
+  /**
+   * Gets the current logged-in user's profile information.
+   * @returns {Promise<{user_id: string, displayname: string|null, avatar_url: string|null}|null>}
+   */
+  async getProfileInfo() {
+    if (!this.userId) return null;
+    try {
+      const data = await this.api(`/profile/${enc(this.userId)}`);
+      return data.errcode
+        ? null
+        : {
+            user_id: this.userId,
+            displayname: data.displayname || null,
+            avatar_url: data.avatar_url || null,
+          };
+    } catch (e) {
+      cerr("getProfileInfo:", e);
+      return null;
     }
   }
 

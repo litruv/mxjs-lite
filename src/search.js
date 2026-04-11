@@ -1,7 +1,7 @@
 import { cerr } from './constants.js';
 
 /**
- * Mixin adding search methods to a base client class.
+ * Search methods.
  * @template {typeof import('./BaseMxjsClient.js').BaseMxjsClient} T
  * @param {T} Base
  * @returns {T}
