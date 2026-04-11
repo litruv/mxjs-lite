@@ -35,16 +35,14 @@ jobs:
           
       - name: Copy documentation to wiki
         run: |
-          # Remove old API docs from wiki
-          rm -rf wiki/api-generated
+          # Remove ALL existing .md files from wiki (clean slate)
+          find wiki -name "*.md" -type f -delete
           
           # Copy generated docs
           cp -r "mxjs-lite Docs/api-generated" wiki/
           
-          # Copy INDEX.md as Home.md if it doesn't exist
-          if [ ! -f wiki/Home.md ]; then
-            cp "mxjs-lite Docs/api-generated/INDEX.md" wiki/Home.md
-          fi
+          # Copy INDEX.md as Home.md
+          cp "mxjs-lite Docs/api-generated/INDEX.md" wiki/Home.md
           
       - name: Commit and push to wiki
         run: |
