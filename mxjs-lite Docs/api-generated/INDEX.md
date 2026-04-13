@@ -2,7 +2,7 @@
 
 > Auto-generated documentation from source code JSDoc comments
 
-Last updated: 12/04/2026, 8:21:20 am
+Last updated: 14/04/2026, 8:20:11 am
 
 ## Coverage Statistics
 
@@ -12,85 +12,85 @@ Last updated: 12/04/2026, 8:21:20 am
 
 ## Modules
 
-### [AccountData](accountdata.md) — 6 methods
+### [AccountData](accountdata) — 6 methods
 
 Account data methods.
 
-### [Auth](auth.md) — 19 methods
+### [Auth](auth) — 19 methods
 
 Matrix authentication methods.
 
-### [BaseMxjsClient](BaseMxjsClient.md) — 4 methods
+### [BaseMxjsClient](BaseMxjsClient) — 4 methods
 
-### [Capabilities](capabilities.md) — 1 method
+### [Capabilities](capabilities) — 1 method
 
 Server capabilities methods.
 
-### [Devices](devices.md) — 5 methods
+### [Devices](devices) — 5 methods
 
 Device management methods.
 
-### [Directory](directory.md) — 13 methods
+### [Directory](directory) — 13 methods
 
 Room directory methods.
 
-### [Events](events.md) — 24 methods
+### [Events](events) — 24 methods
 
 Room event methods for sending, editing, redacting, reacting, and fetching room events and state.
 
-### [Filter](filter.md) — 2 methods
+### [Filter](filter) — 2 methods
 
 Filter API methods.
 
-### [Html](html.md) — 13 methods
+### [Html](html) — 13 methods
 
 HTML utility methods and event inspection helpers.
 
-### [Media](media.md) — 9 methods
+### [Media](media) — 9 methods
 
 Media upload and retrieval methods.
 
-### [Profile](profile.md) — 15 methods
+### [Profile](profile) — 15 methods
 
 User profile and presence methods.
 
-### [Push](push.md) — 14 methods
+### [Push](push) — 14 methods
 
 Push notification methods.
 
-### [Receipts](receipts.md) — 3 methods
+### [Receipts](receipts) — 3 methods
 
 Typing notifications and read receipts.
 
-### [Rooms](rooms.md) — 14 methods
+### [Rooms](rooms) — 14 methods
 
 Room management methods.
 
-### [RoomVersions](roomversions.md) — 7 methods
+### [RoomVersions](roomversions) — 7 methods
 
 Matrix room version upgrade support (MSC1501). Provides methods to upgrade a room, inspect its version, follow tombstone chains, and read predecessor information from `m.room.create`.
 
-### [Search](search.md) — 1 method
+### [Search](search) — 1 method
 
 Search methods.
 
-### [Spaces](spaces.md) — 7 methods
+### [Spaces](spaces) — 7 methods
 
 Matrix Spaces support (MSC1772 / Matrix v1.2). Spaces are rooms with `type: 'm.space'` in their `m.room.create` content. Children and parents are expressed via `m.space.child` / `m.space.parent` state events.
 
-### [Sync](sync.md) — 2 methods
+### [Sync](sync) — 2 methods
 
 Matrix /sync polling and sync data processing.
 
-### [SyncLoop](SyncLoop.md) — 2 methods
+### [SyncLoop](SyncLoop) — 2 methods
 
 Automatic long-poll sync loop. Depends on the {@link Sync} mixin being present in the chain.
 
-### [Threads](threads.md) — 7 methods
+### [Threads](threads) — 7 methods
 
 Matrix Threads support (MSC3440 / Matrix v1.3). Threads are conversations branched off a root message using the `m.thread` relation type.
 
-### [VoIP](voip.md) — 1 method
+### [VoIP](voip) — 1 method
 
 VoIP methods.
 
@@ -145,4 +145,11 @@ client.on('messageCreate', ({ roomId, event }) => {
 const syncData = await client.sync();
 client.processSyncData(syncData);
 ```
+
+## Quick Links
+
+- [Getting Started](../examples/QuickStart.md)
+- [Basic Usage](../examples/BasicUsage.md)
+- [Advanced Examples](../examples/AdvancedExample.md)
+- [Run Example Tests](../../testing/test.js)
 

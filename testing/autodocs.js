@@ -443,7 +443,7 @@ function generateIndex() {
   const sortedModules = [...modules.values()].sort((a, b) => a.name.localeCompare(b.name));
   
   for (const module of sortedModules) {
-    md += `### [${module.name}](${module.fileName.replace('.js', '.md')}) — ${module.methods.length} method${module.methods.length !== 1 ? 's' : ''}\n\n`;
+    md += `### [${module.name}](${module.fileName.replace('.js', '')}) — ${module.methods.length} method${module.methods.length !== 1 ? 's' : ''}\n\n`;
     if (module.description) {
       md += `${module.description}\n\n`;
     }
@@ -470,6 +470,12 @@ function generateIndex() {
   md += `// Listen for new messages\nclient.on('messageCreate', ({ roomId, event }) => {\n  const sender = event.sender;\n  const body = event.content.body;\n  console.log(\`[\${roomId}] \${sender}: \${body}\`);\n});\n\n`;
   md += `// Start syncing\nconst syncData = await client.sync();\nclient.processSyncData(syncData);\n`;
   md += `\`\`\`\n\n`;
+  
+  md += `## Quick Links\n\n`;
+  md += `- [Getting Started](../examples/QuickStart.md)\n`;
+  md += `- [Basic Usage](../examples/BasicUsage.md)\n`;
+  md += `- [Advanced Examples](../examples/AdvancedExample.md)\n`;
+  md += `- [Run Example Tests](../../testing/test.js)\n\n`;
   
   return md;
 }
